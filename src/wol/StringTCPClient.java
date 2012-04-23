@@ -52,14 +52,25 @@ abstract public class StringTCPClient extends TCPClient {
         int offset = 0, end = inbuf.limit();
         for (int i = 0; i < end - 1; i++) {
             if (buf[i] == '\r' && buf[i+1] == '\n') {
+                String message = null;
+
                 try {
-                    String message = new String(buf, offset, i - offset, "US-ASCII");
-                    System.out.println(address + ":" + port + " -> " + message);
-                    onString(message);
+                    message = new String(buf, offset, i - offset, "US-ASCII");
                 } catch (Exception e) {
                     System.out.println("Unexpected exception when converting bytes to string");
                 }
+
+                if (message != null) {
+                    System.out.println(address + ":" + port + " -> " + message);
+                    onString(message);
+                }
+
                 offset = i + 2;
+
+                // ignore rest of the buffer if something already triggered a disconnect
+                if (disconnecting) {
+                    break;
+                }
             }
         }
 
