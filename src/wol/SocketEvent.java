@@ -22,5 +22,8 @@ import java.io.IOException;
  * @author Toni Spets
  */
 public interface SocketEvent {
-    public void event(int op) throws IOException;
+    public void canAccept() throws IOException;
+    public void canConnect() throws IOException;
+    public void canRead() throws IOException;
+    public void canWrite() throws IOException;
 }

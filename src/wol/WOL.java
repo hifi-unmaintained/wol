@@ -42,7 +42,19 @@ public class WOL {
                 for (Iterator<SelectionKey> i = selector.selectedKeys().iterator(); i.hasNext();) {
                     SelectionKey k = i.next();
                     SocketEvent se = (SocketEvent)k.attachment();
-                    se.event(k.readyOps());
+                    int ops = k.readyOps();
+
+                    if ((ops & SelectionKey.OP_ACCEPT) > 0)
+                        se.canAccept();
+
+                    if ((ops & SelectionKey.OP_CONNECT) > 0)
+                        se.canConnect();
+
+                    if ((ops & SelectionKey.OP_READ) > 0)
+                        se.canRead();
+
+                    if ((ops & SelectionKey.OP_WRITE) > 0)
+                        se.canWrite();
 
                     // remove key from selector if channel is closed
                     if (!k.channel().isOpen())

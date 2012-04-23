@@ -38,7 +38,7 @@ abstract public class TCPServer implements SocketEvent {
         channel.register(selector, SelectionKey.OP_ACCEPT, this);
     }
 
-    protected void accept() {
+    public void canAccept() {
         try {
             SocketChannel clientChannel = channel.accept();
             clientChannel.configureBlocking(false);
@@ -48,10 +48,10 @@ abstract public class TCPServer implements SocketEvent {
         }
     }
 
+    public void canConnect() {}
+    public void canRead() {}
+    public void canWrite() {}
+
     abstract protected void onAccept(SocketChannel clientChannel);
 
-    public void event(int ops) {
-        if ((ops & SelectionKey.OP_ACCEPT) > 0)
-            accept();
-    }
 }

@@ -89,7 +89,10 @@ public class TCPClient implements SocketEvent {
         }
     }
 
-    protected void read() throws IOException {
+    public void canAccept() throws IOException {}
+    public void canConnect() throws IOException {}
+
+    public void canRead() throws IOException {
 
         // handle disconnect and buffer overflow
         try {
@@ -107,7 +110,7 @@ public class TCPClient implements SocketEvent {
         setOps();
     }
 
-    protected void write() throws IOException {
+    public void canWrite() throws IOException {
         // TODO: push outbuf in chunks rather than everything at once!
         outbuf.flip();
         onWrite();
@@ -124,11 +127,4 @@ public class TCPClient implements SocketEvent {
     protected void onRead() {};
     protected void onWrite() {}
     protected void onDisconnect() {};
-
-    public void event(int ops) throws IOException {
-        if ((ops & SelectionKey.OP_WRITE) > 0)
-            write();
-        if ((ops & SelectionKey.OP_READ) > 0)
-            read();
-    }
 }
