@@ -17,10 +17,9 @@ package wol;
 
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Vector;
+import java.util.ArrayList;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
@@ -28,105 +27,37 @@ import java.util.regex.Pattern;
  */
 public class ChatClient extends StringTCPClient {
 
-    final public int ERR_NEEDMOREPARAMS     = 461;
-    final public int ERR_ALREADYREGISTERED  = 462;
-    final public int ERR_PASSWDMISMATCH     = 464;
-
     String nick;
 
     boolean registered;
     boolean havePassword;
 
-    Pattern ircPattern;
     long lastMessage;
-    boolean pingSent;
+    boolean idle;
+    ChatServer server;
+
+    protected ChatClient(SocketChannel channel, Selector selector, ChatServer server) {
+        this(channel, selector);
+        this.server = server;
+    }
 
     protected ChatClient(SocketChannel channel, Selector selector) {
         super(channel, selector);
-        ircPattern = Pattern.compile("^(:([^ ]+) )?([^ ]+) (.+)");
-    }
-
-    protected void onCvers(String[] params) { }
-
-    protected void onPass(String[] params) {
-
-        if (params.length < 1) {
-            putReply(ERR_NEEDMOREPARAMS, "Not enough parameters");
-            return;
-        }
-
-        if (params[0] != "supersecret") {
-            putReply(ERR_PASSWDMISMATCH, "Password incorrect");
-            disconnect();
-            return;
-        }
-
-        havePassword = true;
-    }
-
-    protected void onNick(String[] params) {
-
-        if (params.length < 1) {
-            putReply(ERR_NEEDMOREPARAMS, "Not enough parameters");
-            return;
-        }
-
-        nick = params[0];
-    }
-
-    protected void onApgar(String[] params) { }
-    protected void onSerial(String[] params) { }
-
-    protected void onUser(String[] params) {
-
-        if (params.length < 4) {
-            putReply(ERR_NEEDMOREPARAMS, "Not enough parameters");
-            return;
-        }
-
-        /*
-        if (user != null) {
-            putReply(ERR_ALREADYREGISTERED, "Not enough parameters");
-            return;
-        }
-        */
-
-        if (!havePassword) {
-            putReply(ERR_PASSWDMISMATCH, "Password incorrect");
-            disconnect();
-            return;
-        }
-
-        if (nick != null) {
-            registered = true;
-        }
-    }
-
-    protected void onVerchk(String[] params) { }
-    protected void onSetOpt(String[] params) { }
-    protected void onSetCodepage(String[] params) { }
-    protected void onList(String[] params) { }
-    protected void onJoinGame(String[] params) { }
-    protected void onJoin(String[] params) { }
-    protected void onGetCodepage(String[] params) { }
-    protected void onPart(String[] params) { }
-
-    protected void onQuit(String[] params) {
-        // FIXME: do a dirty quit for now
-        disconnect(true);
     }
 
     public void onString(String message) {
 
         lastMessage = System.currentTimeMillis();
-        pingSent = false;
-        Matcher m = ircPattern.matcher(message);
+        idle = false;
+        Matcher m = server.ircPattern.matcher(message);
 
         if (m.matches()) {
             MatchResult mr = m.toMatchResult();
 
-            // parse params
-            Vector<String> tmp = new Vector<String>();
+            String prefix = mr.group(2);
+            String command = mr.group(3);
+
+            ArrayList<String> tmp = new ArrayList<String>();
             String[] parts = m.group(4).split(":", 2);
 
             for (String param : parts[0].split(" ")) {
@@ -137,83 +68,81 @@ public class ChatClient extends StringTCPClient {
                 tmp.add(parts[1]);
             }
 
-            String prefix = mr.group(2);
-            String command = mr.group(3);
             String[] params = new String[tmp.size()];
             tmp.toArray(params);
 
             if (command.equalsIgnoreCase("CVERS")) {
-                onCvers(params);
+                server.onCvers(this, params);
             }
 
             else if (command.equalsIgnoreCase("PASS")) {
-                onPass(params);
+                server.onPass(this, params);
             }
 
             else if (command.equalsIgnoreCase("NICK")) {
-                onNick(params);
+                server.onNick(this, params);
             }
 
             else if (command.equalsIgnoreCase("APGAR")) {
-                onApgar(params);
+                server.onApgar(this, params);
             }
 
             else if (command.equalsIgnoreCase("SERIAL")) {
-                onSerial(params);
+                server.onSerial(this, params);
             }
 
             else if (command.equalsIgnoreCase("USER")) {
-                onUser(params);
+                server.onUser(this, params);
             }
 
             else if (command.equalsIgnoreCase("VERCHK")) {
-                onVerchk(params);
+                server.onVerchk(this, params);
             }
 
             else if (command.equalsIgnoreCase("SETOPT")) {
-                onSetOpt(params);
+                server.onSetOpt(this, params);
             }
 
             else if (command.equalsIgnoreCase("SETCODEPAGE")) {
-                onSetCodepage(params);
+                server.onSetCodepage(this, params);
             }
 
             else if (command.equalsIgnoreCase("LIST")) {
-                onList(params);
+                server.onList(this, params);
             }
 
             else if (command.equalsIgnoreCase("JOIN")) {
-                onJoin(params);
+                server.onJoin(this, params);
             }
 
             else if (command.equalsIgnoreCase("JOINGAME")) {
-                onJoinGame(params);
+                server.onJoinGame(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("PRIVMSG")) {
+                server.onPrivmsg(this, params);
             }
 
             else if (command.equalsIgnoreCase("GETCODEPAGE")) {
-                onGetCodepage(params);
+                server.onGetCodepage(this, params);
             }
 
             else if (command.equalsIgnoreCase("PART")) {
-                onPart(params);
+                server.onPart(this, params);
             }
 
             else if (command.equalsIgnoreCase("QUIT")) {
-                onQuit(params);
+                server.onQuit(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("PONG")) {
+                // ignore PONG, we don't keep track of them
             }
 
             else {
                 System.out.println("Client sent unknown command: " + command);
             }
         }
-    }
-
-    protected void putReply(int code, String message) {
-        putString(":irc.westwood.com " + code + " " + nick + " :" + message);
-    }
-
-    protected void putCommand(String command, String message) {
-        putString(command + " :" + message);
     }
 
     protected void onConnect() {
@@ -227,19 +156,13 @@ public class ChatClient extends StringTCPClient {
 
     public void think(long now) {
 
-        // very crude ping timeout handling
-        if (now - lastMessage > 30000 && !pingSent) {
-            putCommand("PING", "irc.westwood.com");
-            pingSent = true;
+        if (now - lastMessage > 30000 && !idle) {
+            server.clientIdle(this);
+            idle = true;
         }
 
         if (now - lastMessage > 60000) {
-            putCommand("ERROR", "Ping timeout");
-            // desparately try to send the last command out
-            try {
-                canWrite();
-            } catch(Exception e) {}
-            disconnect(true);
+            server.clientTimeout(this);
         }
     }
 }
