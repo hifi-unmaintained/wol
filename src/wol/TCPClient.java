@@ -123,6 +123,8 @@ public class TCPClient implements SocketEvent {
             disconnect(true);
     }
 
+    public void think(long now) {};
+
     protected void onConnect() {};
     protected void onRead() {};
     protected void onWrite() {}

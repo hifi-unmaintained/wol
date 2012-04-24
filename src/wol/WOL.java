@@ -19,6 +19,7 @@ import java.net.InetAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  *
@@ -30,6 +31,9 @@ public class WOL {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+
+        long lastThink = 0;
+
         try {
             Selector selector = Selector.open();
 
@@ -38,29 +42,45 @@ public class WOL {
             GameresServer gameres = new GameresServer(InetAddress.getByName("0.0.0.0"), 4006, selector);
             LadderServer ladder = new LadderServer(InetAddress.getByName("0.0.0.0"), 4002, selector);
 
-            while (selector.select() > 0) {
-                for (Iterator<SelectionKey> i = selector.selectedKeys().iterator(); i.hasNext();) {
-                    SelectionKey k = i.next();
-                    SocketEvent se = (SocketEvent)k.attachment();
-                    int ops = k.readyOps();
+            while (true) {
 
-                    if ((ops & SelectionKey.OP_ACCEPT) > 0)
-                        se.canAccept();
+                if (selector.select(1000) > 0) {
+                    for (Iterator<SelectionKey> i = selector.selectedKeys().iterator(); i.hasNext();) {
+                        SelectionKey k = i.next();
+                        SocketEvent se = (SocketEvent)k.attachment();
+                        int ops = k.readyOps();
 
-                    if ((ops & SelectionKey.OP_CONNECT) > 0)
-                        se.canConnect();
+                        if ((ops & SelectionKey.OP_ACCEPT) > 0)
+                            se.canAccept();
 
-                    if ((ops & SelectionKey.OP_READ) > 0)
-                        se.canRead();
+                        if ((ops & SelectionKey.OP_CONNECT) > 0)
+                            se.canConnect();
 
-                    if ((ops & SelectionKey.OP_WRITE) > 0)
-                        se.canWrite();
+                        if ((ops & SelectionKey.OP_READ) > 0)
+                            se.canRead();
 
-                    // remove key from selector if channel is closed
-                    if (!k.channel().isOpen())
-                        k.cancel();
+                        if ((ops & SelectionKey.OP_WRITE) > 0)
+                            se.canWrite();
 
-                    i.remove();
+                        // remove key from selector if channel is closed
+                        if (!k.channel().isOpen())
+                            k.cancel();
+
+                        i.remove();
+                    }
+                }
+
+                // let everyone think once per second, approximately
+                long now = System.currentTimeMillis();
+                if (lastThink < now - 1000) {
+
+                    for (Iterator <SelectionKey> i = selector.keys().iterator(); i.hasNext();) {
+                        SelectionKey k = i.next();
+                        SocketEvent se = (SocketEvent)k.attachment();
+                        se.think(now);
+                    }
+
+                    lastThink = now;
                 }
             }
 

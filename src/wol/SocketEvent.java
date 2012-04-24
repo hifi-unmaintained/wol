@@ -26,4 +26,5 @@ public interface SocketEvent {
     public void canConnect() throws IOException;
     public void canRead() throws IOException;
     public void canWrite() throws IOException;
+    public void think(long now);
 }

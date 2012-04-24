@@ -51,6 +51,7 @@ abstract public class TCPServer implements SocketEvent {
     public void canConnect() {}
     public void canRead() {}
     public void canWrite() {}
+    public void think(long now) {}
 
     abstract protected void onAccept(SocketChannel clientChannel);
 

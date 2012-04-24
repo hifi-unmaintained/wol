@@ -38,6 +38,8 @@ public class ChatClient extends StringTCPClient {
     boolean havePassword;
 
     Pattern ircPattern;
+    long lastMessage;
+    boolean pingSent;
 
     protected ChatClient(SocketChannel channel, Selector selector) {
         super(channel, selector);
@@ -54,7 +56,7 @@ public class ChatClient extends StringTCPClient {
         }
 
         if (params[0] != "supersecret") {
-            putReply(ERR_PASSWDMISMATCH, "Password incorrect")
+            putReply(ERR_PASSWDMISMATCH, "Password incorrect");
             disconnect();
             return;
         }
@@ -78,17 +80,19 @@ public class ChatClient extends StringTCPClient {
     protected void onUser(String[] params) {
 
         if (params.length < 4) {
-            putError(ERR_NEEDMOREPARAMS, "Not enough parameters");
+            putReply(ERR_NEEDMOREPARAMS, "Not enough parameters");
             return;
         }
 
+        /*
         if (user != null) {
-            putError(ERR_ALREADYREGISTERED, "Not enough parameters");
+            putReply(ERR_ALREADYREGISTERED, "Not enough parameters");
             return;
         }
+        */
 
         if (!havePassword) {
-            putReply(ERR_PASSWDMISMATCH, "Password incorrect")
+            putReply(ERR_PASSWDMISMATCH, "Password incorrect");
             disconnect();
             return;
         }
@@ -114,6 +118,8 @@ public class ChatClient extends StringTCPClient {
 
     public void onString(String message) {
 
+        lastMessage = System.currentTimeMillis();
+        pingSent = false;
         Matcher m = ircPattern.matcher(message);
 
         if (m.matches()) {
@@ -195,18 +201,45 @@ public class ChatClient extends StringTCPClient {
             else if (command.equalsIgnoreCase("QUIT")) {
                 onQuit(params);
             }
+
+            else {
+                System.out.println("Client sent unknown command: " + command);
+            }
         }
     }
 
     protected void putReply(int code, String message) {
-        putString(":irc.westwood.com " + code + " UserName :" + message);
+        putString(":irc.westwood.com " + code + " " + nick + " :" + message);
+    }
+
+    protected void putCommand(String command, String message) {
+        putString(command + " :" + message);
     }
 
     protected void onConnect() {
+        lastMessage = System.currentTimeMillis();
         System.out.println(address + ":" + port + " connected to ChatServer");
     }
 
     protected void onDisconnect() {
         System.out.println(address + ":" + port + " disconnected from ChatServer");
+    }
+
+    public void think(long now) {
+
+        // very crude ping timeout handling
+        if (now - lastMessage > 30000 && !pingSent) {
+            putCommand("PING", "irc.westwood.com");
+            pingSent = true;
+        }
+
+        if (now - lastMessage > 60000) {
+            putCommand("ERROR", "Ping timeout");
+            // desparately try to send the last command out
+            try {
+                canWrite();
+            } catch(Exception e) {}
+            disconnect(true);
+        }
     }
 }
