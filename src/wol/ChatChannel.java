@@ -29,6 +29,7 @@ public class ChatChannel {
     protected String key;
     protected int gameType;
     protected boolean permanent;
+    ChatClient owner;
     ArrayList<ChatClient> users;
     ArrayList<String> bans;
 
@@ -37,7 +38,7 @@ public class ChatChannel {
     protected int minUsers;
     protected int maxUsers;
     protected int official;
-    protected int tournament;
+    protected boolean tournament;
     protected int ingame;
     protected int flags;
     protected long reserved;
@@ -61,6 +62,30 @@ public class ChatChannel {
         this.permanent = permanent;
         users = new ArrayList<ChatClient>();
         bans = new ArrayList<String>();
+    }
+
+    public void setOwner(ChatClient client) {
+        owner = client;
+    }
+
+    public boolean isOwner(ChatClient client) {
+        return (owner != null && client == owner);
+    }
+
+    public void setMinUsers(int newMinUsers) {
+        minUsers = newMinUsers;
+    }
+
+    public void setMaxUsers(int newMaxUsers) {
+        minUsers = newMaxUsers;
+    }
+
+    public void setTournament(boolean newTournament) {
+        tournament = newTournament;
+    }
+
+    public void setReserved(int newReserved) {
+        reserved = newReserved;
     }
 
     public boolean isGameType(int gameType) {

@@ -19,6 +19,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.BufferOverflowException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 
 /**
  *
@@ -26,14 +27,27 @@ import java.nio.channels.SocketChannel;
  */
 abstract public class StringTCPClient extends TCPClient {
 
+    String encoding = "US-ASCII";
+
     protected StringTCPClient(SocketChannel channel, Selector selector) {
         super(channel, selector);
+    }
+
+    public String getEncoding() {
+        return encoding;
+    }
+
+    public void setEncoding(String newEncoding) throws UnsupportedEncodingException {
+        if (!Charset.isSupported(newEncoding))
+            throw new UnsupportedEncodingException(newEncoding);
+
+        encoding = newEncoding;
     }
 
     public void putString(String message) {
         try {
             System.out.println(address + ":" + port + " <- " + message);
-            outbuf.put(new String(message + "\r\n").getBytes("US-ASCII"));
+            outbuf.put(new String(message + "\r\n").getBytes(encoding));
             setOps();
         } catch (BufferOverflowException e) {
             System.out.println(address + ":" + port + " SENDQ full, disconnecting");
@@ -55,7 +69,7 @@ abstract public class StringTCPClient extends TCPClient {
                 String message = null;
 
                 try {
-                    message = new String(buf, offset, i - offset, "US-ASCII");
+                    message = new String(buf, offset, i - offset, encoding);
                 } catch (Exception e) {
                     System.out.println("Unexpected exception when converting bytes to string");
                 }

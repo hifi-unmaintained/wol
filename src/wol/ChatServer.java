@@ -16,6 +16,7 @@
 package wol;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -40,7 +41,10 @@ public class ChatServer extends TCPServer {
     public class NumericReplies {
         final static public int RPL_LISTSTART           = 321;
         final static public int RPL_LIST                = 327;
+        final static public int RPL_CODEPAGE            = 328;
+        final static public int RPL_CODEPAGESET         = 329;
         final static public int RPL_ENDOFLIST           = 323;
+        final static public int RPL_TOPIC               = 332;
         final static public int RPL_NAMREPLY            = 353;
         final static public int RPL_ENDOFNAMES          = 366;
         final static public int RPL_MOTDSTART           = 375;
@@ -101,13 +105,13 @@ public class ChatServer extends TCPServer {
         putReply(client, RPL_ENDOFLIST);
     }
 
-    void putChannelNames(ChatChannel channel, ChatClient client) {
+    void putChannelNames(ChatClient client, ChatChannel channel) {
 
         ArrayList<ChatClient> clients = channel.getUsers();
         for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
             ChatClient c = i.next();
             // FIXME: highly inefficient, concat up to 512 bytes
-            putReply(client, RPL_NAMREPLY, "* " + channel.getName() + " :" + c.nick + ",0,0");
+            putReply(client, RPL_NAMREPLY, (channel.isPermanent() ? "* " : "= ") + channel.getName() + " :" + (channel.isOwner(c) ? "@" : "") + c.nick + ",0,0");
         }
 
         putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
@@ -201,7 +205,31 @@ public class ChatServer extends TCPServer {
 
     protected void onVerchk(ChatClient client, String[] params) { }
     protected void onSetOpt(ChatClient client, String[] params) { }
-    protected void onSetCodepage(ChatClient client, String[] params) { }
+
+    protected void onGetCodepage(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        // FIXME: pull correct client encoding and not own
+        String encoding = client.getEncoding();
+
+        if (encoding.startsWith("Cp")) {
+            putReply(client, RPL_CODEPAGE, client.nick + "`" + encoding.substring(2));
+        } else {
+            // FIXME: what we do when no codepage is set yet?
+        }
+    }
+    protected void onSetCodepage(ChatClient client, String[] params) {
+        try {
+            client.setEncoding("Cp" + params[0]);
+            putReply(client, RPL_CODEPAGESET, params[0]);
+        } catch (UnsupportedEncodingException e) {
+             //what is the error message?
+        }
+    }
 
     protected void onList(ChatClient client, String[] params) {
         if (params.length < 2) {
@@ -214,7 +242,7 @@ public class ChatServer extends TCPServer {
 
     protected void onJoinGame(ChatClient client, String[] params) {
 
-        // handle buggy RA call
+        // normal join
         if (params.length == 3) {
             String[] newParams = new String[2];
             newParams[0] = params[0];
@@ -222,6 +250,46 @@ public class ChatServer extends TCPServer {
             onJoin(client, newParams);
             return;
         }
+
+        // game create
+        if (params.length < 8) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        String name = params[0];
+        String minUsers = params[1];
+        String maxUsers = params[2];
+        String gameType = params[3];
+        String tournament = params[6];
+        String reserved = params[7];
+        String key = params.length > 8 ? params[8] : "";
+
+        ChatChannel game = new ChatChannel(name, key, Integer.valueOf(gameType), false);
+
+        game.setOwner(client);
+        game.setMinUsers(Integer.valueOf(minUsers));
+        game.setMaxUsers(Integer.valueOf(maxUsers));
+        game.setTournament(Boolean.valueOf(tournament));
+        game.setReserved(Integer.valueOf(reserved));
+
+        try {
+            game.join(client, key);
+            channels.put(name, game);
+            putReply(client, RPL_TOPIC, ":");
+            putReply(client, "JOINGAME", minUsers + " " + maxUsers + " " + gameType + " " + tournament + " 0 0 0 " + ":" + game.getName());
+            putChannelNames(client, game);
+        } catch (Exception e) {
+            System.out.println("Unexpected exception when joining a fresly created channel");
+        }
+    }
+
+    protected void onTopic(ChatClient client, String params[]) {
+
+    }
+
+    protected void onGameopt(ChatClient client, String params[]) {
+
     }
 
     protected void onJoin(ChatClient client, String[] params) {
@@ -236,7 +304,7 @@ public class ChatServer extends TCPServer {
             try {
                 channel.join(client, params.length > 1 ? params[1] : "");
                 putReplyChannel(channel, client, "JOIN", ":0,0 " + channel.getName());
-                putChannelNames(channel, client);
+                putChannelNames(client, channel);
             } catch(UserExistsException e) {
                 putReply(client, "JOIN", ":0,0 " + channel.getName());
             } catch(UserBannedException e) {
@@ -250,8 +318,6 @@ public class ChatServer extends TCPServer {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
         }
     }
-
-    protected void onGetCodepage(ChatClient client, String[] params) { }
 
     protected void onPrivmsg(ChatClient client, String[] params) {
 
