@@ -15,6 +15,7 @@
  */
 package wol;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
@@ -22,13 +23,20 @@ import java.nio.channels.SocketChannel;
  *
  * @author Toni Spets
  */
-public class GameresClient extends StringTCPClient {
+public class GameresClient extends TCPClient {
 
     protected GameresClient(SocketChannel channel, Selector selector) {
         super(channel, selector);
     }
 
-    public void onString(String message) {
+    public void onRead() {
+        try {
+            String message = new String(inbuf.array(), "US-ASCII");
+            inbuf.position(inbuf.limit());
+            System.out.println(address + ":" + port + " sent gameres data: " + message);
+        } catch(UnsupportedEncodingException e) {
+            // never
+        }
     }
 
     protected void onConnect() {
