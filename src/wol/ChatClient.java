@@ -18,6 +18,7 @@ package wol;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 
@@ -27,22 +28,35 @@ import java.util.regex.Matcher;
  */
 public class ChatClient extends StringTCPClient {
 
+    // FIXME: change to protected
     String nick;
 
-    boolean registered;
-    boolean havePassword;
+    protected boolean registered;
+    protected boolean havePassword;
 
-    long lastMessage;
-    boolean idle;
-    ChatServer server;
+    protected long lastMessage;
+    protected boolean idle;
+    protected ChatServer server;
+    protected long writeDelayUntil;
+    protected boolean sentGameopt;
+    protected ArrayList<String> queue;
 
     protected ChatClient(SocketChannel channel, Selector selector, ChatServer server) {
         this(channel, selector);
         this.server = server;
+        this.queue = new ArrayList<String>();
     }
 
     protected ChatClient(SocketChannel channel, Selector selector) {
         super(channel, selector);
+    }
+
+    public String getNick() {
+        return nick;
+    }
+
+    public String getIp() {
+        return address.getHostAddress();
     }
 
     public void onString(String message) {
@@ -119,12 +133,28 @@ public class ChatClient extends StringTCPClient {
                 server.onJoinGame(this, params);
             }
 
+            else if (command.equalsIgnoreCase("TOPIC")) {
+                server.onTopic(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("GAMEOPT")) {
+                server.onGameopt(this, params);
+            }
+
             else if (command.equalsIgnoreCase("PRIVMSG")) {
                 server.onPrivmsg(this, params);
             }
 
             else if (command.equalsIgnoreCase("GETCODEPAGE")) {
                 server.onGetCodepage(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("USERIP")) {
+                server.onUserIp(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("STARTG")) {
+                server.onStartG(this, params);
             }
 
             else if (command.equalsIgnoreCase("PART")) {
@@ -152,6 +182,31 @@ public class ChatClient extends StringTCPClient {
 
     protected void onDisconnect() {
         System.out.println(address + ":" + port + " disconnected from ChatServer");
+        server.clientDisconnect(this);
+    }
+
+    public void sentGameopt(boolean newSentGameopt) {
+        sentGameopt = newSentGameopt;
+    }
+
+    public boolean sentGameopt() {
+        return sentGameopt;
+    }
+
+    public void putQueue(String message) {
+        queue.add(message);
+    }
+
+    public void flushQueue() {
+        for (Iterator<String> i = queue.iterator(); i.hasNext();) {
+            String message = i.next();
+            putString(message);
+            i.remove();
+        }
+    }
+
+    public void discardQueue() {
+        queue.clear();
     }
 
     public void think(long now) {

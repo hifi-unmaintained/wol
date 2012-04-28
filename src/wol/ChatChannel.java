@@ -16,6 +16,7 @@
 package wol;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  *
@@ -41,8 +42,8 @@ public class ChatChannel {
     protected boolean tournament;
     protected int ingame;
     protected int flags;
-    protected long reserved;
-    protected long ipaddr;
+    protected int reserved;
+    protected int ipaddr;
     protected int latency;
     protected int hidden;
     protected String location;
@@ -62,6 +63,7 @@ public class ChatChannel {
         this.permanent = permanent;
         users = new ArrayList<ChatClient>();
         bans = new ArrayList<String>();
+        flags = 128; // ???
     }
 
     public void setOwner(ChatClient client) {
@@ -77,7 +79,7 @@ public class ChatChannel {
     }
 
     public void setMaxUsers(int newMaxUsers) {
-        minUsers = newMaxUsers;
+        maxUsers = newMaxUsers;
     }
 
     public void setTournament(boolean newTournament) {
@@ -86,6 +88,42 @@ public class ChatChannel {
 
     public void setReserved(int newReserved) {
         reserved = newReserved;
+    }
+
+    public void setTopic(String newTopic) {
+        topic = newTopic;
+    }
+
+    public int getMinUsers() {
+        return minUsers;
+    }
+
+    public int getMaxUsers() {
+        return maxUsers;
+    }
+
+    public int getType() {
+        return gameType;
+    }
+
+    public boolean getTournament() {
+        return tournament;
+    }
+
+    public int getReserved() {
+        return reserved;
+    }
+
+    public int getIp() {
+        return ipaddr;
+    }
+
+    public int getFlags() {
+        return flags;
+    }
+
+    public String getTopic() {
+        return topic;
     }
 
     public boolean isGameType(int gameType) {
@@ -104,8 +142,16 @@ public class ChatChannel {
         return users;
     }
 
-    public int userCount() {
-        return users.size();
+    public ChatClient getUser(String nick) throws NoSuchUserException {
+
+        for (Iterator<ChatClient> i = users.iterator(); i.hasNext();) {
+            ChatClient client = i.next();
+            if (client.getNick().equals(nick)) {
+                return client;
+            }
+        }
+
+        throw new NoSuchUserException();
     }
 
     public void join(ChatClient client, String joinKey) throws UserExistsException, UserBannedException, GameFullException, InvalidKeyException {
