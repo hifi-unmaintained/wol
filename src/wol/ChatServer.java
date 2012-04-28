@@ -129,26 +129,26 @@ public class ChatServer extends TCPServer {
         for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
             ChatClient c = i.next();
             // FIXME: highly inefficient, concat up to 512 bytes
-            putReply(client, RPL_NAMREPLY, (channel.isPermanent() ? "* " : "= ") + channel.getName() + " :" + (channel.isOwner(c) ? "@" : "") + c.nick + ",0,0");
+            putReply(client, RPL_NAMREPLY, (channel.isPermanent() ? "* " : "= ") + channel.getName() + " :" + (channel.isOwner(c) ? "@" : "") + c.getNick() + ",0,0");
         }
 
         putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
     }
 
     protected void putReply(ChatClient client, int code) {
-        client.putString(":" + name + " " + code + " " + client.nick);
+        client.putString(":" + name + " " + code + " " + client.getNick());
     }
 
     protected void putReply(ChatClient client, int code, String params) {
-        client.putString(":" + name + " " + code + " " + client.nick + " " + params);
+        client.putString(":" + name + " " + code + " " + client.getNick() + " " + params);
     }
 
     protected void putReply(ChatClient client, String command, String params) {
-        client.putString(":" + client.nick + "!u@h " + command + " " + params);
+        client.putString(":" + client.getNick() + "!u@h " + command + " " + params);
     }
 
     protected void putMessage(ChatClient from, ChatClient to, String command, String params) {
-        to.putString(":" + from.nick + "!u@h " + command + " " + params);
+        to.putString(":" + from.getNick() + "!u@h " + command + " " + params);
     }
 
     protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params) {
@@ -156,7 +156,7 @@ public class ChatServer extends TCPServer {
     }
 
     protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params, boolean skipFrom) {
-        String message = ":" + client.nick + "!u@h " + command + " " + params;
+        String message = ":" + client.getNick() + "!u@h " + command + " " + params;
         ArrayList<ChatClient> clients = channel.getUsers();
         for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
             ChatClient to = i.next();
@@ -195,7 +195,7 @@ public class ChatServer extends TCPServer {
             return;
         }
 
-        client.nick = params[0];
+        client.setNick(params[0]);
     }
 
     protected void onApgar(ChatClient client, String[] params) { }
@@ -219,7 +219,7 @@ public class ChatServer extends TCPServer {
             return;
         }
 
-        if (client.nick != null) {
+        if (client.getNick() != null) {
             client.registered = true;
             putMotd(client);
         }
@@ -239,7 +239,7 @@ public class ChatServer extends TCPServer {
         String encoding = client.getEncoding();
 
         if (encoding.startsWith("Cp")) {
-            putReply(client, RPL_CODEPAGE, client.nick + "`" + encoding.substring(2));
+            putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
         } else {
             // FIXME: what we do when no codepage is set yet?
         }
@@ -362,7 +362,7 @@ public class ChatServer extends TCPServer {
                     ChatClient current = i.next();
                     // handle buggy RA
                     if (!current.sentGameopt()) {
-                        current.putQueue(":" + client.nick + "!u@h GAMEOPT " + channel.getName() + " :" + params[1]);
+                        current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + channel.getName() + " :" + params[1]);
                     } else {
                         putMessage(client, current, "GAMEOPT", channel.getName() + " :" + params[1]);
                     }
@@ -373,10 +373,10 @@ public class ChatServer extends TCPServer {
         } else {
             for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
                 ChatClient current = i.next();
-                if (current.nick.equals(params[0])) {
+                if (current.getNick().equals(params[0])) {
                     // handle buggy RA
                     if (!current.sentGameopt()) {
-                        current.putQueue(":" + client.nick + "!u@h GAMEOPT " + current.getNick() + " :" + params[1]);
+                        current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + current.getNick() + " :" + params[1]);
                     } else {
                         putMessage(client, current, "GAMEOPT", current.getNick() + " :" + params[1]);
                     }

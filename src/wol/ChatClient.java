@@ -28,18 +28,18 @@ import java.util.regex.Matcher;
  */
 public class ChatClient extends StringTCPClient {
 
-    // FIXME: change to protected
-    String nick;
+    private String nick;
 
+    // ChatServer modifies
     protected boolean registered;
     protected boolean havePassword;
 
-    protected long lastMessage;
-    protected boolean idle;
-    protected ChatServer server;
-    protected long writeDelayUntil;
-    protected boolean sentGameopt;
-    protected ArrayList<String> queue;
+    private long lastMessage;
+    private boolean idle;
+    private ChatServer server;
+    private long writeDelayUntil;
+    private boolean sentGameopt;
+    private ArrayList<String> queue;
 
     protected ChatClient(SocketChannel channel, Selector selector, ChatServer server) {
         this(channel, selector);
@@ -53,6 +53,10 @@ public class ChatClient extends StringTCPClient {
 
     public String getNick() {
         return nick;
+    }
+
+    public void setNick(String newNick) {
+        nick = newNick;
     }
 
     public String getIp() {

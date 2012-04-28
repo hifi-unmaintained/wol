@@ -166,7 +166,7 @@ public class ChatChannel {
         if (!joinKey.equals(key))
             throw new InvalidKeyException();
 
-        if (bans.contains(client.nick))
+        if (bans.contains(client.getNick()))
             throw new UserBannedException();
 
         users.add(client);
