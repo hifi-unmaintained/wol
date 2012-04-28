@@ -94,13 +94,13 @@ public class TCPClient implements SocketEvent {
 
     public void canRead() throws IOException {
 
-        // handle disconnect and buffer overflow
+        // any read error equals disconnect
         try {
             if (channel.read(inbuf) == -1) {
                 disconnect();
                 return;
             }
-        } catch (BufferOverflowException e) {
+        } catch (IOException e) {
             disconnect(true);
         }
 
@@ -114,7 +114,14 @@ public class TCPClient implements SocketEvent {
         // TODO: push outbuf in chunks rather than everything at once!
         outbuf.flip();
         onWrite();
-        channel.write(outbuf);
+
+        // any write error equals disconnect
+        try {
+            channel.write(outbuf);
+        } catch (IOException e) {
+            disconnect(true);
+        }
+
         outbuf.clear();
         setOps();
 

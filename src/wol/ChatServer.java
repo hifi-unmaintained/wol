@@ -543,6 +543,15 @@ public class ChatServer extends TCPServer {
 
     public void clientDisconnect(ChatClient client) {
         if (clients.containsValue(client)) {
+            for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {
+                ChatChannel channel = i.next();
+                ArrayList<ChatClient> users = channel.getUsers();
+
+                if (users.contains(client)) {
+                    putReplyChannel(channel, client, "QUIT", channel.getName() + " :Disconnected", true);
+                    users.remove(client);
+                }
+            }
             clients.remove(client.getNick());
         }
     }

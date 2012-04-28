@@ -50,24 +50,21 @@ public class WOL {
                         SocketEvent se = (SocketEvent)k.attachment();
                         int ops = k.readyOps();
 
-                        if ((ops & SelectionKey.OP_ACCEPT) > 0)
-                            se.canAccept();
-
-                        if ((ops & SelectionKey.OP_CONNECT) > 0)
-                            se.canConnect();
-
                         try {
+                            if ((ops & SelectionKey.OP_ACCEPT) > 0)
+                                se.canAccept();
+
+                            if ((ops & SelectionKey.OP_CONNECT) > 0)
+                                se.canConnect();
+
                             if ((ops & SelectionKey.OP_READ) > 0)
                                 se.canRead();
-                        } catch (IOException e) {
-                            System.out.println("canRead threw: " + e);
-                            // close and kill the connection to save our own ass
-                            k.channel().close();
-                            k.cancel();
-                        }
 
-                        if ((ops & SelectionKey.OP_WRITE) > 0)
-                            se.canWrite();
+                            if ((ops & SelectionKey.OP_WRITE) > 0)
+                                se.canWrite();
+                        } catch (IOException e) {
+                            System.out.println("Unexpected IOException when passing event");
+                        }
 
                         // remove key from selector if channel is closed
                         if (!k.channel().isOpen())
