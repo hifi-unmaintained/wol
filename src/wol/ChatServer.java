@@ -21,16 +21,17 @@ import java.net.InetAddress;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.regex.Pattern;
 import wol.ChatChannel.GameFullException;
 import wol.ChatChannel.InvalidKeyException;
-import wol.ChatChannel.NoSuchUserException;
 import wol.ChatChannel.UserBannedException;
 import wol.ChatChannel.UserExistsException;
+import wol.ChatChannel.UserNotOperatorException;
 import static wol.ChatServer.NumericReplies.*;
+import static wol.ChatChannel.ChannelFlags.*;
+import wol.ChatChannel.UserNotOnChannelException;
 
 /**
  *
@@ -53,6 +54,9 @@ public class ChatServer extends TCPServer {
         final static public int RPL_ENDOFMOTD           = 376;
         final static public int ERR_NOSUCHNICK          = 401;
         final static public int ERR_NOSUCHCHANNEL       = 403;
+        final static public int ERR_NONICKNAMEGIVEN     = 431;
+        final static public int ERR_ERRORNEUSNICKNAME   = 432;
+        final static public int ERR_NICKNAMEINUSE       = 433;
         final static public int ERR_USERNOTINCHANNEL    = 441;
         final static public int ERR_NOTONCHANNEL        = 442;
         final static public int ERR_NEEDMOREPARAMS      = 461;
@@ -61,25 +65,26 @@ public class ChatServer extends TCPServer {
         final static public int ERR_CHANNELISFULL       = 471;
         final static public int ERR_BANNEDFROMCHAN      = 474;
         final static public int ERR_BADCHANNELKEY       = 475;
+        final static public int ERR_CHANOPRIVSNEEDED    = 482;
     }
 
     Pattern ircPattern;
     String name;
 
     HashMap<String, ChatChannel> channels;
-    ArrayList<ChatClient> clients;
+    HashMap<String, ChatClient> clients;
 
     protected ChatServer(InetAddress address, int port, Selector selector) throws IOException {
         super(address, port, selector);
         name = java.net.InetAddress.getLocalHost().getHostName();
         ircPattern = Pattern.compile("^(:([^ ]+) )?([^ ]+) ?(.*)");
 
+        clients = new HashMap<String, ChatClient>();
         channels = new HashMap<String, ChatChannel>();
-        channels.put("#Lob_21_0", new ChatChannel("#Lob_21_0", "zotclot9", 21, true));
-        channels.put("#Lob_21_1", new ChatChannel("#Lob_21_1", "zotclot9", 21, true));
-        channels.put("#Lob_21_2", new ChatChannel("#Lob_21_2", "zotclot9", 21, true));
 
-        clients = new ArrayList<ChatClient>();
+        // Red Alert lobbies
+        channels.put("#Lob_21_0", new ChatChannel("#Lob_21_0", null, "zotclot9", 21, 0, 0, false, 0, CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT));
+        channels.put("#Lob_21_1", new ChatChannel("#Lob_21_1", null, "progamer", 21, 0, 0, false, 0, CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT));
 
         System.out.println("ChatServer listening on " + address + ":" + port);
     }
@@ -95,15 +100,15 @@ public class ChatServer extends TCPServer {
         if (listType == 0) {
             for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {
                 ChatChannel channel = i.next();
-                if (channel.isPermanent() && channel.isGameType(gameType))  {
-                    putReply(client, RPL_LIST, channel.getName() + " 0 0 388");
+                if ((channel.getFlags() & CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT) > 0 && channel.getType() == gameType)  {
+                    putReply(client, RPL_LIST, channel.getName() + " " + channel.getUsers().size() + " 0 " + channel.getFlags());
                 }
             }
         }
         else if (listType == gameType) {
             for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {
                 ChatChannel channel = i.next();
-                if (!channel.isPermanent() && channel.getType() == gameType)  {
+                if ((channel.getFlags() & CHAN_LOBBY) > 0 && (channel.getFlags() & CHAN_OFFICIAL) == 0 && channel.getType() == gameType)  {
                     putReply(client, RPL_LISTGAME, String.format(
                         "%s %d %d %d %d %d %d %d::%s",
                         channel.getName(),
@@ -129,7 +134,7 @@ public class ChatServer extends TCPServer {
         for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
             ChatClient c = i.next();
             // FIXME: highly inefficient, concat up to 512 bytes
-            putReply(client, RPL_NAMREPLY, (channel.isPermanent() ? "* " : "= ") + channel.getName() + " :" + (channel.isOwner(c) ? "@" : "") + c.getNick() + ",0,0");
+            putReply(client, RPL_NAMREPLY, ((channel.getFlags() & CHAN_OFFICIAL) > 0 ? "* " : "= ") + channel.getName() + " :" + (channel.getOwner() == c ? "@" : "") + c.getNick() + ",0,0");
         }
 
         putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
@@ -191,7 +196,22 @@ public class ChatServer extends TCPServer {
     protected void onNick(ChatClient client, String[] params) {
 
         if (params.length < 1) {
-            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            putReply(client, ERR_NEEDMOREPARAMS, "NICK :Not enough parameters");
+            return;
+        }
+
+        if (params[0].length() == 0) {
+            putReply(client, ERR_NONICKNAMEGIVEN, ":No nickname given");
+            return;
+        }
+
+        if (params[0].length() > 9) {
+            putReply(client, ERR_ERRORNEUSNICKNAME, params[0] + " :Errorneus nickname");
+            return;
+        }
+
+        if (clients.containsKey(params[0])) {
+            putReply(client, ERR_NICKNAMEINUSE, params[0] + " :Nickname is already in use");
             return;
         }
 
@@ -221,6 +241,7 @@ public class ChatServer extends TCPServer {
 
         if (client.getNick() != null) {
             client.registered = true;
+            clients.put(client.getNick(), client);
             putMotd(client);
         }
     }
@@ -313,13 +334,7 @@ public class ChatServer extends TCPServer {
         String reserved = params[7];
         String key = params.length > 8 ? params[8] : "";
 
-        ChatChannel game = new ChatChannel(name, key, Integer.valueOf(gameType), false);
-
-        game.setOwner(client);
-        game.setMinUsers(Integer.valueOf(minUsers));
-        game.setMaxUsers(Integer.valueOf(maxUsers));
-        game.setTournament(Integer.valueOf(tournament) > 0);
-        game.setReserved(Integer.valueOf(reserved));
+        ChatChannel game = new ChatChannel(name, client, key, Integer.valueOf(gameType), Integer.valueOf(minUsers), Integer.valueOf(maxUsers), Integer.valueOf(tournament) > 0, Integer.valueOf(reserved), CHAN_LOBBY);
 
         try {
             game.join(client, key);
@@ -341,8 +356,10 @@ public class ChatServer extends TCPServer {
 
         if (channels.containsKey(params[0])) {
             ChatChannel channel = channels.get(params[0]);
-            if (channel.isOwner(client)) {
-                channel.setTopic(params[1]);
+            try {
+                channel.setTopic(client, params[1]);
+            } catch (UserNotOperatorException e) {
+                putReply(client, ERR_CHANOPRIVSNEEDED, params[0] + " :You're not channel operator");
             }
         } else {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
@@ -358,7 +375,7 @@ public class ChatServer extends TCPServer {
         if (params[0].startsWith("#")) {
             if (channels.containsKey(params[0])) {
                 ChatChannel channel = channels.get(params[0]);
-                for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
+                for (Iterator<ChatClient> i = channel.getUsers().iterator(); i.hasNext();) {
                     ChatClient current = i.next();
                     // handle buggy RA
                     if (!current.sentGameopt()) {
@@ -371,21 +388,19 @@ public class ChatServer extends TCPServer {
                 putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
             }
         } else {
-            for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
-                ChatClient current = i.next();
-                if (current.getNick().equals(params[0])) {
-                    // handle buggy RA
-                    if (!current.sentGameopt()) {
-                        current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + current.getNick() + " :" + params[1]);
-                    } else {
-                        putMessage(client, current, "GAMEOPT", current.getNick() + " :" + params[1]);
-                    }
-                    client.sentGameopt(true);
-                    client.flushQueue();
-                    return;
+            if (clients.containsKey(params[0])) {
+                ChatClient current = clients.get(params[0]);
+                // handle buggy RA
+                if (!current.sentGameopt()) {
+                    current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + current.getNick() + " :" + params[1]);
+                } else {
+                    putMessage(client, current, "GAMEOPT", current.getNick() + " :" + params[1]);
                 }
+                client.sentGameopt(true);
+                client.flushQueue();
+            } else {
+                putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
             }
-            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
         }
     }
 
@@ -426,11 +441,20 @@ public class ChatServer extends TCPServer {
         if (params[0].startsWith("#")) {
             if (channels.containsKey(params[0])) {
                 ChatChannel channel = channels.get(params[0]);
-                putReplyChannel(channel, client, "PRIVMSG", params[0] + " :" + params[1], true);
+                if (channel.getUsers().contains(client)) {
+                    putReplyChannel(channel, client, "PRIVMSG", params[0] + " :" + params[1], true);
+                } else {
+                    putReply(client, ERR_NOTONCHANNEL, params[0] + " :You're not on that channel");
+                }
             } else {
+                putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
             }
         } else {
-            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
+            if (clients.containsKey(params[0])) {
+                putMessage(client, clients.get(params[0]), "PRIVMSG", params[1]);
+            } else {
+                putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
+            }
         }
     }
 
@@ -454,18 +478,20 @@ public class ChatServer extends TCPServer {
 
         if (channels.containsKey(params[0])) {
             ChatChannel channel = channels.get(params[0]);
-            if (channel.isOwner(client)) {
+            if (channel.getOwner() == client) {
                 for (String player : params[1].split(",")) {
                     try {
                         ChatClient user = channel.getUser(player);
                         message += user.getNick() + " " + user.getIp() + " ";
-                    } catch(NoSuchUserException e) {
+                    } catch(UserNotOnChannelException e) {
                         // ignore?
                     }
                 }
                 message+= ":1 " + (int)(System.currentTimeMillis() / 1000);
 
                 putReplyChannel(channel, client, "STARTG", client.getNick() + " :" + message);
+            } else {
+                putReply(client, ERR_CHANOPRIVSNEEDED, params[0] + " :You're not channel operator");
             }
         } else {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
@@ -482,15 +508,15 @@ public class ChatServer extends TCPServer {
         if (channels.containsKey(params[0])) {
             ChatChannel channel = channels.get(params[0]);
             try {
-                putReply(client, "PART", channel.getName());
                 channel.part(client);
+                putReply(client, "PART", channel.getName());
                 putReplyChannel(channel, client, "PART", channel.getName());
                 // remove empty channel from list
-                if (!channel.isPermanent() && channel.getUsers().size() == 0) {
+                if ((channel.getFlags() & CHAN_PERMANENT) == 0 && channel.getUsers().isEmpty()) {
                     channels.remove(channel.getName());
                 }
-            } catch(NoSuchUserException e) {
-                putReply(client, ERR_NOTONCHANNEL, channel.getName() + " :You aren't on that channel");
+            } catch(UserNotOnChannelException e) {
+                putReply(client, ERR_NOTONCHANNEL, params[0] + " :You aren't on that channel");
             }
         } else {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
@@ -516,17 +542,13 @@ public class ChatServer extends TCPServer {
     }
 
     public void clientDisconnect(ChatClient client) {
-        for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
-            ChatClient current = i.next();
-            if (current == client) {
-                i.remove();
-            }
+        if (clients.containsValue(client)) {
+            clients.remove(client.getNick());
         }
     }
 
     protected void onAccept(SocketChannel clientChannel) {
         ChatClient client = new ChatClient(clientChannel, selector, this);
-        clients.add(client);
     }
 
 }

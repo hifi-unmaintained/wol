@@ -26,7 +26,7 @@ public class ChatChannel {
 
     // standard channel properties
     protected String name;
-    protected String topic;
+    protected String topic = "";
     protected String key;
     protected int gameType;
     protected boolean permanent;
@@ -49,49 +49,41 @@ public class ChatChannel {
     protected String location;
     protected String exInfo;
 
+    public class UserNotOperatorException extends Exception {}
+    public class UserNotOnChannelException extends Exception {}
     public class UserBannedException extends Exception {}
     public class UserExistsException extends Exception {}
-    public class NoSuchUserException extends Exception {}
     public class InvalidKeyException extends Exception {}
     public class GameFullException extends Exception {}
     public class GameClosedException extends Exception {}
 
-    public ChatChannel(String name, String key, int gameType, boolean permanent) {
+    public class ChannelFlags {
+        final static public int CHAN_PERMANENT  = 4;
+        final static public int CHAN_LOBBY      = 128;
+        final static public int CHAN_OFFICIAL   = 256;
+    }
+
+    public ChatChannel(String name, ChatClient owner, String key, int gameType, int minUsers, int maxUsers, boolean tournament, int reserved, int flags) {
         this.name = name;
+        this.owner = owner;
         this.key = key;
         this.gameType = gameType;
+        this.minUsers = minUsers;
+        this.maxUsers = maxUsers;
+        this.tournament = tournament;
+        this.reserved = reserved;
         this.permanent = permanent;
+        this.flags = flags;
         users = new ArrayList<ChatClient>();
         bans = new ArrayList<String>();
-        flags = 128; // ???
     }
 
-    public void setOwner(ChatClient client) {
-        owner = client;
+    public String getName() {
+        return name;
     }
 
-    public boolean isOwner(ChatClient client) {
-        return (owner != null && client == owner);
-    }
-
-    public void setMinUsers(int newMinUsers) {
-        minUsers = newMinUsers;
-    }
-
-    public void setMaxUsers(int newMaxUsers) {
-        maxUsers = newMaxUsers;
-    }
-
-    public void setTournament(boolean newTournament) {
-        tournament = newTournament;
-    }
-
-    public void setReserved(int newReserved) {
-        reserved = newReserved;
-    }
-
-    public void setTopic(String newTopic) {
-        topic = newTopic;
+    public ChatClient getOwner() {
+        return owner;
     }
 
     public int getMinUsers() {
@@ -126,23 +118,18 @@ public class ChatChannel {
         return topic;
     }
 
-    public boolean isGameType(int gameType) {
-        return (this.gameType == gameType);
-    }
-
-    public boolean isPermanent() {
-        return permanent;
-    }
-
-    public String getName() {
-        return name;
-    }
-
     public ArrayList<ChatClient> getUsers() {
         return users;
     }
 
-    public ChatClient getUser(String nick) throws NoSuchUserException {
+    public void setTopic(ChatClient client, String newTopic) throws UserNotOperatorException {
+        if (getOwner() != client)
+            throw new UserNotOperatorException();
+
+        topic = newTopic;
+    }
+
+    public ChatClient getUser(String nick) throws UserNotOnChannelException {
 
         for (Iterator<ChatClient> i = users.iterator(); i.hasNext();) {
             ChatClient client = i.next();
@@ -151,7 +138,7 @@ public class ChatChannel {
             }
         }
 
-        throw new NoSuchUserException();
+        throw new UserNotOnChannelException();
     }
 
     public void join(ChatClient client, String joinKey) throws UserExistsException, UserBannedException, GameFullException, InvalidKeyException {
@@ -172,10 +159,10 @@ public class ChatChannel {
         users.add(client);
     }
 
-    public void part(ChatClient client) throws NoSuchUserException {
+    public void part(ChatClient client) throws UserNotOnChannelException {
 
         if (!users.contains(client))
-            throw new NoSuchUserException();
+            throw new UserNotOnChannelException();
 
         users.remove(client);
     }
