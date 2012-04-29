@@ -47,7 +47,7 @@ abstract public class StringTCPClient extends TCPClient {
     public void putString(String message) {
         try {
             String messageNl = new String(message + "\n");
-            System.out.print(address + ":" + port + " <- " + message);
+            System.out.print(address + ":" + port + " <- " + messageNl);
             outbuf.put(messageNl.getBytes(encoding));
             setOps();
         } catch (BufferOverflowException e) {
