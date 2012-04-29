@@ -108,7 +108,8 @@ public class WOL {
             }
 
         } catch (Exception e) {
-            System.out.println("Unexpected exception " + e + " in main: " + e.getMessage());
+            System.out.println("Unexpected exception in main:");
+            e.printStackTrace();
         }
     }
 }
