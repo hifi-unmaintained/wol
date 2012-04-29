@@ -677,7 +677,7 @@ public class ChatServer extends TCPServer {
                 }
 
                 if ((channel.getFlags() & CHAN_PERMANENT) == 0 && users.isEmpty()) {
-                    channels.remove(channel.getName());
+                    i.remove();
                 }
             }
             clients.remove(client.getNick());
