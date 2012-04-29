@@ -15,11 +15,13 @@
  */
 package wol;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
+import java.util.Properties;
 
 /**
  *
@@ -27,12 +29,29 @@ import java.util.Iterator;
  */
 public class WOL {
 
+    static String hostname;
+
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
 
         long lastThink = 0;
+
+        Properties config = new Properties();
+        try {
+            config.load(new FileInputStream("wol.prop"));
+        } catch (IOException e) {
+            System.out.println("Failed to load wol.ini: " + e.getMessage());
+            return;
+        }
+
+        hostname = config.getProperty("WOL.hostname");
+
+        if (hostname == null) {
+            System.out.println("No hostname defined in config.");
+            return;
+        }
 
         try {
             Selector selector = Selector.open();

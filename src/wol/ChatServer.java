@@ -69,14 +69,12 @@ public class ChatServer extends TCPServer {
     }
 
     Pattern ircPattern;
-    String name;
 
     HashMap<String, ChatChannel> channels;
     HashMap<String, ChatClient> clients;
 
     protected ChatServer(InetAddress address, int port, Selector selector) throws IOException {
         super(address, port, selector);
-        name = java.net.InetAddress.getLocalHost().getHostName();
         ircPattern = Pattern.compile("^(:([^ ]+) )?([^ ]+) ?(.*)");
 
         clients = new HashMap<String, ChatClient>();
@@ -141,11 +139,11 @@ public class ChatServer extends TCPServer {
     }
 
     protected void putReply(ChatClient client, int code) {
-        client.putString(":" + name + " " + code + " " + client.getNick());
+        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick());
     }
 
     protected void putReply(ChatClient client, int code, String params) {
-        client.putString(":" + name + " " + code + " " + client.getNick() + " " + params);
+        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick() + " " + params);
     }
 
     protected void putReply(ChatClient client, String command, String params) {
@@ -529,7 +527,7 @@ public class ChatServer extends TCPServer {
     }
 
     public void clientIdle(ChatClient client) {
-        putCommand(client, "PING", ":" + name);
+        putCommand(client, "PING", ":" + WOL.hostname);
     }
 
     public void clientTimeout(ChatClient client) {

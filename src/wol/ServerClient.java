@@ -31,11 +31,11 @@ public class ServerClient extends StringTCPClient {
     protected void onString(String message) {
 
         if (message.equals("QUIT")) {
-            putString(":ServerServer 610 UserName 1");
-            putString(":ServerServer 605 UserName :localhost 5000 'Live chat server' 0 0.0000 0.0000");
-            putString(":ServerServer 608 UserName :localhost 4006 'Gameres server' 0 0.0000 0.0000");
-            putString(":ServerServer 609 UserName :localhost 4002 'Ladder server' 0 0.0000 0.0000");
-            putString(":ServerServer 607");
+            putString(":" + WOL.hostname + " 610 UserName 1");
+            putString(":" + WOL.hostname + " 605 UserName :" + WOL.hostname + " 5000 'Live chat server' 0 0.0000 0.0000");
+            putString(":" + WOL.hostname + " 608 UserName :" + WOL.hostname + " 4006 'Gameres server' 0 0.0000 0.0000");
+            putString(":" + WOL.hostname + " 609 UserName :" + WOL.hostname + " 4002 'Ladder server' 0 0.0000 0.0000");
+            putString(":" + WOL.hostname + " 607");
             disconnect();
         }
     }
