@@ -52,6 +52,8 @@ public class ChatServer extends TCPServer {
         final static public int RPL_MOTDSTART           = 375;
         final static public int RPL_MOTD                = 372;
         final static public int RPL_ENDOFMOTD           = 376;
+        final static public int RPL_PAGE                = 389;
+        final static public int RPL_FINDUSEREX          = 398;
         final static public int ERR_NOSUCHNICK          = 401;
         final static public int ERR_NOSUCHCHANNEL       = 403;
         final static public int ERR_NONICKNAMEGIVEN     = 431;
@@ -458,6 +460,49 @@ public class ChatServer extends TCPServer {
                 putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
             }
         }
+    }
+
+    protected void onPage(ChatClient client, String[] params) {
+
+        if (params.length < 2) {
+            putReply(client, ERR_NEEDMOREPARAMS, "PAGE :Not enough parameters");
+            return;
+        }
+
+        System.out.println("paging '" + params[0] + "'");
+        clients.containsKey(params[0]);
+
+        if (clients.containsKey(params[0])) {
+            putMessage(client, clients.get(params[0]), "PAGE", params[0] + " :" + params[1]);
+            putReply(client, RPL_PAGE, "0 :Ok");
+        } else {
+            putReply(client, RPL_PAGE, "1 :No such nick");
+        }
+    }
+
+    protected void onFindUserEx(ChatClient client, String[] params) {
+
+        if (params.length < 2) {
+            putReply(client, ERR_NEEDMOREPARAMS, "FINDUSEREX :Not enough parameters");
+            return;
+        }
+
+        if (!clients.containsKey(params[0])) {
+            putReply(client, RPL_FINDUSEREX, "1 :No such nick (not connected)");
+            return;
+        }
+
+        ChatClient target = clients.get(params[0]);
+
+        for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {
+            ChatChannel channel = i.next();
+            if (channel.getUsers().contains(target)) {
+                putReply(client, RPL_FINDUSEREX, "0 :" + channel.getName() + ",0");
+                return;
+            }
+        }
+
+        putReply(client, RPL_FINDUSEREX, "1 :No such nick (not in any channel)");
     }
 
     protected void onUserIp(ChatClient client, String[] params) {

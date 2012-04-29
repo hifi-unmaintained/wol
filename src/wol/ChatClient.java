@@ -149,8 +149,16 @@ public class ChatClient extends StringTCPClient {
                 server.onPrivmsg(this, params);
             }
 
+            else if (command.equalsIgnoreCase("PAGE")) {
+                server.onPage(this, params);
+            }
+
             else if (command.equalsIgnoreCase("GETCODEPAGE")) {
                 server.onGetCodepage(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("FINDUSEREX")) {
+                server.onFindUserEx(this, params);
             }
 
             else if (command.equalsIgnoreCase("USERIP")) {
