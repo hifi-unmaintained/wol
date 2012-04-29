@@ -60,6 +60,10 @@ public class ChatClient extends StringTCPClient {
         super(channel, selector);
     }
 
+    public void putString(String message) {
+        super.putString(message + "\r");
+    }
+
     public String getNick() {
         return nick;
     }

@@ -28,9 +28,13 @@ public class ServerClient extends StringTCPClient {
         super(channel, selector);
     }
 
+    public void putString(String message) {
+        super.putString(message + "\r");
+    }
+
     protected void onString(String message) {
 
-        if (message.equals("QUIT")) {
+        if (message.startsWith("whereto")) {
             putString(":" + WOL.hostname + " 610 UserName 1");
             putString(":" + WOL.hostname + " 605 UserName :" + WOL.hostname + " 5000 'Live chat server' 0 0.0000 0.0000");
             putString(":" + WOL.hostname + " 608 UserName :" + WOL.hostname + " 4006 'Gameres server' 0 0.0000 0.0000");

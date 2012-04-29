@@ -46,8 +46,9 @@ abstract public class StringTCPClient extends TCPClient {
 
     public void putString(String message) {
         try {
-            System.out.println(address + ":" + port + " <- " + message);
-            outbuf.put(new String(message + "\r\n").getBytes(encoding));
+            String messageNl = new String(message + "\n");
+            System.out.print(address + ":" + port + " <- " + message);
+            outbuf.put(messageNl.getBytes(encoding));
             setOps();
         } catch (BufferOverflowException e) {
             System.out.println(address + ":" + port + " SENDQ full, disconnecting");
@@ -64,22 +65,22 @@ abstract public class StringTCPClient extends TCPClient {
         byte[] buf = inbuf.array();
 
         int offset = 0, end = inbuf.limit();
-        for (int i = 0; i < end - 1; i++) {
-            if (buf[i] == '\r' && buf[i+1] == '\n') {
+        for (int i = 0; i < end; i++) {
+            if (buf[i] == '\n') {
                 String message = null;
 
                 try {
-                    message = new String(buf, offset, i - offset, encoding);
+                    message = new String(buf, offset, i - offset - (i > 0 && buf[i-1] == '\r' ? 1 : 0), encoding);
                 } catch (Exception e) {
                     System.out.println("Unexpected exception when converting bytes to string");
                 }
 
-                if (message != null) {
+                if (message != null && message.length() > 0) {
                     System.out.println(address + ":" + port + " -> " + message);
                     onString(message);
                 }
 
-                offset = i + 2;
+                offset = i + 1;
 
                 // ignore rest of the buffer if something already triggered a disconnect
                 if (disconnecting) {
