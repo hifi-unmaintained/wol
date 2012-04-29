@@ -254,21 +254,25 @@ public class ChatServer extends TCPServer {
             return;
         }
 
-        // FIXME: pull correct client encoding and not own
-        String encoding = client.getEncoding();
-
-        if (encoding.startsWith("Cp")) {
-            putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
+        if (clients.containsKey(params[0])) {
+            String encoding = clients.get(params[0]).getEncoding();
+            if (encoding.startsWith("Cp")) {
+                putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
+            } else {
+                // FIXME: lie if no codepage set
+                putReply(client, RPL_CODEPAGE, client.getNick() + "`1252");
+            }
         } else {
-            // FIXME: what we do when no codepage is set yet?
+            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
         }
     }
+
     protected void onSetCodepage(ChatClient client, String[] params) {
         try {
             client.setEncoding("Cp" + params[0]);
             putReply(client, RPL_CODEPAGESET, params[0]);
         } catch (UnsupportedEncodingException e) {
-             //what is the error message?
+             //FIXME: unsupported codepage error reply?
         }
     }
 
