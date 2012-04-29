@@ -675,6 +675,10 @@ public class ChatServer extends TCPServer {
                     putReplyChannel(channel, client, "QUIT", channel.getName() + " :Disconnected", true);
                     users.remove(client);
                 }
+
+                if ((channel.getFlags() & CHAN_PERMANENT) == 0 && users.isEmpty()) {
+                    channels.remove(channel.getName());
+                }
             }
             clients.remove(client.getNick());
         }
