@@ -449,7 +449,7 @@ public class ChatServer extends TCPServer {
             }
         } else {
             if (clients.containsKey(params[0])) {
-                putMessage(client, clients.get(params[0]), "PRIVMSG", params[1]);
+                putMessage(client, clients.get(params[0]), "PRIVMSG", params[0] + " :" + params[1]);
             } else {
                 putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick/channel");
             }
