@@ -390,14 +390,18 @@ public class ChatServer extends TCPServer {
         if (params[0].startsWith("#")) {
             if (channels.containsKey(params[0])) {
                 ChatChannel channel = channels.get(params[0]);
-                for (Iterator<ChatClient> i = channel.getUsers().iterator(); i.hasNext();) {
-                    ChatClient current = i.next();
-                    // handle buggy RA
-                    if (!current.sentGameopt()) {
-                        current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + channel.getName() + " :" + params[1]);
-                    } else {
-                        putMessage(client, current, "GAMEOPT", channel.getName() + " :" + params[1]);
+                if (channel.getUsers().contains(client)) {
+                    for (Iterator<ChatClient> i = channel.getUsers().iterator(); i.hasNext();) {
+                        ChatClient current = i.next();
+                        // handle buggy RA
+                        if (!current.sentGameopt()) {
+                            current.putQueue(":" + client.getNick() + "!u@h GAMEOPT " + channel.getName() + " :" + params[1]);
+                        } else {
+                            putMessage(client, current, "GAMEOPT", channel.getName() + " :" + params[1]);
+                        }
                     }
+                } else {
+                    putReply(client, ERR_NOTONCHANNEL, params[0] + " :You're not on that channel");
                 }
             } else {
                 putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
@@ -560,6 +564,58 @@ public class ChatServer extends TCPServer {
                 putReplyChannel(channel, client, "STARTG", client.getNick() + " :" + message);
             } else {
                 putReply(client, ERR_CHANOPRIVSNEEDED, params[0] + " :You're not channel operator");
+            }
+        } else {
+            putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
+        }
+    }
+
+    protected void onKick(ChatClient client, String[] params) {
+        if (params.length < 2) {
+            putReply(client, ERR_NEEDMOREPARAMS, "KICK :Not enough parameters");
+            return;
+        }
+
+        if (channels.containsKey(params[0])) {
+            ChatChannel channel = channels.get(params[0]);
+            ChatClient target = clients.get(params[1]);
+
+            try {
+                channel.kick(client, target);
+                putReplyChannel(channel, client, "KICK", channel.getName() + " " + target.getNick() + " :Kicked");
+                putMessage(client, target, "KICK", channel.getName() + " " + target.getNick() + " :Kicked");
+            } catch (UserNotOperatorException e) {
+                putReply(client, ERR_CHANOPRIVSNEEDED, params[0] + " :You're not channel operator");
+            } catch (UserNotOnChannelException e) {
+                putReply(client, ERR_NOSUCHNICK, params[1] + " :No such nick/channel");
+            }
+        } else {
+            putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
+        }
+    }
+
+    protected void onMode(ChatClient client, String[] params) {
+        // we're not supporting any standard IRC modes, except +b, so 3 params for now
+        if (params.length < 3) {
+            putReply(client, ERR_NEEDMOREPARAMS, "MODE :Not enough parameters");
+            return;
+        }
+
+        if (channels.containsKey(params[0])) {
+            ChatChannel channel = channels.get(params[0]);
+
+            // just a single ban, ok?
+            if (params[1].equals("+b")) {
+                ChatClient target = clients.get(params[2]);
+
+                try {
+                    channel.ban(client, target);
+                    putReplyChannel(channel, client, "MODE", channel.getName() + " +b " + target.getNick());
+                } catch (UserNotOperatorException e) {
+                    putReply(client, ERR_CHANOPRIVSNEEDED, params[0] + " :You're not channel operator");
+                } catch (UserNotOnChannelException e) {
+                    putReply(client, ERR_NOSUCHNICK, params[1] + " :No such nick/channel");
+                }
             }
         } else {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");

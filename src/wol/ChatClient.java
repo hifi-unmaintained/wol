@@ -171,6 +171,14 @@ public class ChatClient extends StringTCPClient {
                 server.onGameopt(this, params);
             }
 
+            else if (command.equalsIgnoreCase("KICK")) {
+                server.onKick(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("MODE")) {
+                server.onMode(this, params);
+            }
+
             else if (command.equalsIgnoreCase("PRIVMSG")) {
                 server.onPrivmsg(this, params);
             }

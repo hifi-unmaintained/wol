@@ -159,6 +159,31 @@ public class ChatChannel {
         users.add(client);
     }
 
+    public void kick(ChatClient client, ChatClient target) throws UserNotOperatorException, UserNotOnChannelException {
+
+        if (!users.contains(client))
+            throw new UserNotOnChannelException();
+
+        if (!users.contains(target))
+            throw new UserNotOnChannelException();
+
+        if (getOwner() != client)
+            throw new UserNotOperatorException();
+
+        users.remove(target);
+    }
+
+    public void ban(ChatClient client, ChatClient target) throws UserNotOperatorException, UserNotOnChannelException {
+
+        if (!users.contains(client))
+            throw new UserNotOnChannelException();
+
+        if (getOwner() != client)
+            throw new UserNotOperatorException();
+
+        bans.add(target.getNick());
+    }
+
     public void part(ChatClient client) throws UserNotOnChannelException {
 
         if (!users.contains(client))
