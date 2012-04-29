@@ -247,7 +247,18 @@ public class ChatServer extends TCPServer {
     }
 
     protected void onVerchk(ChatClient client, String[] params) { }
-    protected void onSetOpt(ChatClient client, String[] params) { }
+
+    protected void onSetOpt(ChatClient client, String[] params) {
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, "SETOPT :Not enough parameters");
+            return;
+        }
+
+        String[] options = params[0].split(",");
+        if (options.length == 2) {
+            client.setOptions(Integer.valueOf(options[0]), Integer.valueOf(options[1]));
+        }
+    }
 
     protected void onGetCodepage(ChatClient client, String[] params) {
 
@@ -469,15 +480,20 @@ public class ChatServer extends TCPServer {
             return;
         }
 
-        System.out.println("paging '" + params[0] + "'");
-        clients.containsKey(params[0]);
-
-        if (clients.containsKey(params[0])) {
-            putMessage(client, clients.get(params[0]), "PAGE", params[0] + " :" + params[1]);
-            putReply(client, RPL_PAGE, "0 :Ok");
-        } else {
+        if (!clients.containsKey(params[0])) {
             putReply(client, RPL_PAGE, "1 :No such nick");
+            return;
         }
+
+        ChatClient target = clients.get(params[0]);
+
+        if (!target.canPage()) {
+            putReply(client, RPL_PAGE, "1 :No such nick");
+            return;
+        }
+
+        putMessage(client, target, "PAGE", params[0] + " :" + params[1]);
+        putReply(client, RPL_PAGE, "0 :Ok");
     }
 
     protected void onFindUserEx(ChatClient client, String[] params) {
@@ -493,6 +509,11 @@ public class ChatServer extends TCPServer {
         }
 
         ChatClient target = clients.get(params[0]);
+
+        if (!target.canFind()) {
+            putReply(client, RPL_FINDUSEREX, "1 :No such nick (not connected)");
+            return;
+        }
 
         for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {
             ChatChannel channel = i.next();

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
+import static wol.ChatClient.UserOptions.*;
 
 /**
  *
@@ -40,6 +41,14 @@ public class ChatClient extends StringTCPClient {
     private long writeDelayUntil;
     private boolean sentGameopt;
     private ArrayList<String> queue;
+
+    private int opt1;
+    private int opt2;
+
+    public class UserOptions {
+        final static public int OPT1_ALLOWFIND = 1;
+        final static public int OPT2_ALLOWPAGE = 1;
+    }
 
     protected ChatClient(SocketChannel channel, Selector selector, ChatServer server) {
         this(channel, selector);
@@ -61,6 +70,19 @@ public class ChatClient extends StringTCPClient {
 
     public String getIp() {
         return address.getHostAddress();
+    }
+
+    public boolean canFind() {
+        return (opt1 & OPT1_ALLOWFIND) > 0;
+    }
+
+    public boolean canPage() {
+        return (opt2 & OPT2_ALLOWPAGE) > 0;
+    }
+
+    public void setOptions(int newOpt1, int newOpt2) {
+        opt1 = newOpt1;
+        opt2 = newOpt2;
     }
 
     public void onString(String message) {
