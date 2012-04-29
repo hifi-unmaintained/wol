@@ -105,7 +105,8 @@ public class ChatClient extends StringTCPClient {
             String[] parts = m.group(4).split(":", 2);
 
             for (String param : parts[0].split(" ")) {
-                tmp.add(param);
+                if (param.length() > 0)
+                    tmp.add(param);
             }
 
             if (parts.length > 1) {
