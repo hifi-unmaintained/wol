@@ -33,6 +33,7 @@ public class LadderServer extends TCPServer {
 
     protected void onAccept(SocketChannel clientChannel) {
         LadderClient client = new LadderClient(clientChannel, selector);
+        client.onConnect();
     }
 
 }

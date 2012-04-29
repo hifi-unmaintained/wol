@@ -33,6 +33,7 @@ public class GameresServer extends TCPServer {
 
     protected void onAccept(SocketChannel clientChannel) {
         GameresClient client = new GameresClient(clientChannel, selector);
+        client.onConnect();
     }
 
 }

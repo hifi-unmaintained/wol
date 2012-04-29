@@ -686,6 +686,7 @@ public class ChatServer extends TCPServer {
 
     protected void onAccept(SocketChannel clientChannel) {
         ChatClient client = new ChatClient(clientChannel, selector, this);
+        client.onConnect();
     }
 
 }

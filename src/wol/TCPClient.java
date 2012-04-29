@@ -47,13 +47,14 @@ public class TCPClient implements SocketEvent {
         this.selector = selector;
         address = channel.socket().getInetAddress();
         port = channel.socket().getPort();
-
-        onConnect();
         setOps();
     }
 
     protected void setOps() {
         int ops = SelectionKey.OP_READ;
+
+        if (!channel.isConnected())
+            ops |= SelectionKey.OP_CONNECT;
 
         // if out buffer has data, request write
         if (outbuf.position() > 0)
@@ -90,7 +91,10 @@ public class TCPClient implements SocketEvent {
     }
 
     public void canAccept() throws IOException {}
-    public void canConnect() throws IOException {}
+
+    public void canConnect() throws IOException {
+        onConnect();
+    }
 
     public void canRead() throws IOException {
 

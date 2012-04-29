@@ -33,6 +33,7 @@ public class ServerServer extends TCPServer {
 
     protected void onAccept(SocketChannel clientChannel) {
         ServerClient client = new ServerClient(clientChannel, selector);
+        client.onConnect();
     }
 
 }
