@@ -29,8 +29,8 @@ import java.nio.channels.SocketChannel;
  */
 public class TCPClient implements SocketEvent {
 
-    public static final int INBUF_SIZE = 4096;
-    public static final int OUTBUF_SIZE = 4096;
+    public static final int INBUF_SIZE = 8192;
+    public static final int OUTBUF_SIZE = 2048;
 
     protected Selector selector;
     protected SocketChannel channel;
