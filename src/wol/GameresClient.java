@@ -15,9 +15,9 @@
  */
 package wol;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import wol.GameresPacket.InvalidGameresException;
 
 /**
  *
@@ -29,22 +29,20 @@ public class GameresClient extends TCPClient {
         super(channel, selector);
     }
 
-    public void onRead() {
-        try {
-            String message = new String(inbuf.array(), "US-ASCII");
-            inbuf.position(inbuf.limit());
-            System.out.println(address + ":" + port + " sent gameres data: " + message);
-        } catch(UnsupportedEncodingException e) {
-            // never
-        }
-    }
-
     protected void onConnect() {
         System.out.println(address + ":" + port + " connected to GameresServer");
     }
 
     protected void onDisconnect() {
         System.out.println(address + ":" + port + " disconnected from GameresServer");
+        inbuf.flip();
+        System.out.println("got " + inbuf.limit() + " bytes of gameres data!");
+
+        try {
+            GameresPacket.parse(inbuf);
+            System.out.println("gameres parsed successfully");
+        } catch (InvalidGameresException e) {
+            System.out.println("gameres parse failed");
+        }
     }
-    
 }
