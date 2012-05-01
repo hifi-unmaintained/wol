@@ -104,7 +104,7 @@ public class ChatChannel {
     /**
      * Host ip address in integer format
      */
-    protected int ipaddr;
+    protected int ipaddr; //PELISH: Useless - we should get IP from owner
 
     /**
      * Latency (relative to what?)
@@ -266,7 +266,16 @@ public class ChatChannel {
      * @return 
      */
     public int getIp() {
-        return ipaddr;
+        return ipaddr; //Pelish: Useless - we should get it from owner structure
+    }
+    
+    /**
+     * Get host ip
+     * 
+     * @return          Ip address
+     */
+    public long getLongIp() {
+        return this.owner.getLongIp();
     }
 
     /**

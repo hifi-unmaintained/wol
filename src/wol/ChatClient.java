@@ -135,6 +135,16 @@ public class ChatClient extends StringTCPClient {
     }
 
     /**
+     * Get ip address as long
+     * 
+     * @return          ip address
+     */
+    public long getLongIp() {
+        byte[] raw = address.getAddress();
+        return raw[3] + (raw[2] << 8) + (raw[1] << 16) + (raw[0] << 24);
+    }
+    
+    /**
      * Can this user be found by FIND command?
      * 
      * @return 

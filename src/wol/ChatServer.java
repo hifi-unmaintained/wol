@@ -102,7 +102,7 @@ public class ChatServer extends TCPServer {
         for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
             ChatClient c = i.next();
             // FIXME: highly inefficient, concat up to 512 bytes
-            putReply(client, RPL_NAMREPLY, ((channel.getFlags() & CHAN_OFFICIAL) > 0 ? "* " : "= ") + channel.getName() + " :" + (channel.getOwner() == c ? "@" : "") + c.getNick() + ",0,0");
+            putReply(client, RPL_NAMREPLY, ((channel.getFlags() & CHAN_OFFICIAL) > 0 ? "* " : "= ") + channel.getName() + " :" + (channel.getOwner() == c ? "@" : "") + c.getNick() + ",0," + c.getLongIp());
         }
 
         putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
@@ -409,7 +409,7 @@ public class ChatServer extends TCPServer {
                         channel.getType(),
                         channel.getTournament() ? 1 : 0,
                         channel.getReserved(),
-                        channel.getIp(),
+                        channel.getLongIp(),
                         channel.getFlags(),
                         channel.getTopic()
                     ));
@@ -443,14 +443,14 @@ public class ChatServer extends TCPServer {
                 ChatChannel game = channels.get(params[0]);
                 try {
                     game.join(client, params.length == 3 ? params[2] : "");
-                    putReplyChannel(game, client, "JOINGAME", game.getMinUsers() + " " + game.getMaxUsers() + " " + game.getType() + " " + (game.getTournament() ? 1 : 0) + " 0 0 0 " + ":" + game.getName());
+                    putReplyChannel(game, client, "JOINGAME", game.getMinUsers() + " " + game.getMaxUsers() + " " + game.getType() + " " + (game.getTournament() ? 1 : 0) + " 0 " + client.getLongIp() + " 0 " + ":" + game.getName());
                     putReply(client, RPL_TOPIC, ":" + game.getTopic());
                     putChannelNames(client, game);
                     // handle buggy RA
                     client.sentGameopt(false);
                     client.discardQueue();
                 } catch(UserExistsException e) {
-                    putReply(client, "JOINGAME", game.getMinUsers() + " " + game.getMaxUsers() + " " + game.getType() + " " + (game.getTournament() ? 1 : 0) + " 0 0 0 " + ":" + game.getName());
+                    putReply(client, "JOINGAME", game.getMinUsers() + " " + game.getMaxUsers() + " " + game.getType() + " " + (game.getTournament() ? 1 : 0) + " 0 " + client.getLongIp() + " 0 " + ":" + game.getName());
                 } catch(UserBannedException e) {
                     putReply(client, ERR_BANNEDFROMCHAN, game.getName() + " :Cannot join channel (banned)");
                 } catch(GameFullException e) {
@@ -483,7 +483,7 @@ public class ChatServer extends TCPServer {
             game.join(client, key);
             channels.put(name, game);
             putReply(client, RPL_TOPIC, ":");
-            putReply(client, "JOINGAME", minUsers + " " + maxUsers + " " + gameType + " " + tournament + " 0 0 0 " + ":" + game.getName());
+            putReply(client, "JOINGAME", minUsers + " " + maxUsers + " " + gameType + " " + tournament + " 0 " + client.getLongIp() + " 0 " + ":" + game.getName());
             putChannelNames(client, game);
             client.sentGameopt(true);
         } catch (Exception e) {
@@ -580,10 +580,10 @@ public class ChatServer extends TCPServer {
             ChatChannel channel = channels.get(params[0]);
             try {
                 channel.join(client, params.length > 1 ? params[1] : "");
-                putReplyChannel(channel, client, "JOIN", ":0,0 " + channel.getName());
+                putReplyChannel(channel, client, "JOIN", ":0," + client.getLongIp() + " " + channel.getName());
                 putChannelNames(client, channel);
             } catch(UserExistsException e) {
-                putReply(client, "JOIN", ":0,0 " + channel.getName());
+                putReply(client, "JOIN", ":0," + client.getLongIp() + " " + channel.getName());
             } catch(UserBannedException e) {
                 putReply(client, ERR_BANNEDFROMCHAN, channel.getName() + " :Cannot join channel (banned)");
             } catch(GameFullException e) {
