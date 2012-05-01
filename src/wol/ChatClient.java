@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import static wol.ChatClient.UserOptions.*;
 
 /**
+ * Client that is connected to ChatServer
  *
  * @author Toni Spets
  */
@@ -31,25 +32,62 @@ public class ChatClient extends StringTCPClient {
 
     private String nick;
 
-    // ChatServer modifies
+    /**
+     * Set when NICK, APGAR and USER command have succeeded
+     */
     protected boolean registered;
+
+    /**
+     * Set when PASS command is sent and acccepted
+     */
     protected boolean havePassword;
 
+    /**
+     * Timestamp when the last message was received
+     */
     private long lastMessage;
+
+    /**
+     * Set when the client is considered idle
+     */
     private boolean idle;
+
+    /**
+     * The ChatServer this client is tied to
+     */
     private ChatServer server;
-    private long writeDelayUntil;
+
+    /**
+     * Red Alert self GAMEOPT sent flag (hack)
+     */
     private boolean sentGameopt;
+
+    /**
+     * Message queue that can be moved to output buffer at any time (hack)
+     */
     private ArrayList<String> queue;
 
+    /**
+     * SETOPT command values
+     */
     private int opt1;
     private int opt2;
 
+    /**
+     * SETOPT command flags
+     */
     public class UserOptions {
         final static public int OPT1_ALLOWFIND = 1;
         final static public int OPT2_ALLOWPAGE = 1;
     }
 
+    /**
+     * Create a new ChatClient that is tied to given ChatServer
+     * 
+     * @param channel   the open channel used for I/O
+     * @param selector  main selector for events
+     * @param server    the ChatServer we are tied to
+     */
     protected ChatClient(SocketChannel channel, Selector selector, ChatServer server) {
         this(channel, selector);
         this.server = server;
@@ -60,30 +98,66 @@ public class ChatClient extends StringTCPClient {
         super(channel, selector);
     }
 
+    /**
+     * Write a single WOL chat string to output buffer
+     * 
+     * @param message   non-terminated line
+     */
     public void putString(String message) {
         super.putString(message + "\r");
     }
 
+    /**
+     * Get nickname
+     * 
+     * @return          current nickname
+     */
     public String getNick() {
         return nick;
     }
 
+    /**
+     * Set nickname
+     * 
+     * @param newNick   new nickname
+     */
     public void setNick(String newNick) {
         nick = newNick;
     }
 
+    /**
+     * Get ip address as string
+     * 
+     * @return          ip address
+     */
     public String getIp() {
         return address.getHostAddress();
     }
 
+    /**
+     * Can this user be found by FIND command?
+     * 
+     * @return 
+     */
     public boolean canFind() {
         return (opt1 & OPT1_ALLOWFIND) > 0;
     }
 
+    /**
+     * Can this user be PAGEd?
+     * 
+     * @return 
+     */
     public boolean canPage() {
         return (opt2 & OPT2_ALLOWPAGE) > 0;
     }
 
+    /**
+     * Set private options (SETOPT command)
+     * 
+     * @param newOpt1   opt1 integer
+     * @param newOpt2   opt2 integer
+     */
     public void setOptions(int newOpt1, int newOpt2) {
         opt1 = newOpt1;
         opt2 = newOpt2;
@@ -232,18 +306,36 @@ public class ChatClient extends StringTCPClient {
         server.clientDisconnect(this);
     }
 
+    /**
+     * Called to set if this client has sent his GAMEOPT (hack)
+     * 
+     * @param newSentGameopt    new setting
+     */
     public void sentGameopt(boolean newSentGameopt) {
         sentGameopt = newSentGameopt;
     }
 
+    /**
+     * Has this client sent his GAMEOPT? (hack)
+     * 
+     * @return 
+     */
     public boolean sentGameopt() {
         return sentGameopt;
     }
 
+    /**
+     * Add a new message to manually flushed queue (hack)
+     * 
+     * @param message non-terminated message
+     */
     public void putQueue(String message) {
         queue.add(message);
     }
 
+    /**
+     * Flush current output queue to output buffer, queue is cleared
+     */
     public void flushQueue() {
         for (Iterator<String> i = queue.iterator(); i.hasNext();) {
             String message = i.next();
@@ -252,6 +344,9 @@ public class ChatClient extends StringTCPClient {
         }
     }
 
+    /**
+     * Discard current output queue
+     */
     public void discardQueue() {
         queue.clear();
     }

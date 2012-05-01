@@ -22,7 +22,11 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
 /**
- *
+ * Implements a line buffered TCP client where lines are terminated with a
+ * single NL.
+ * 
+ * This implementation also handles write buffer overflows by disconnecting the client
+ * 
  * @author Toni Spets
  */
 abstract public class StringTCPClient extends TCPClient {
@@ -33,10 +37,19 @@ abstract public class StringTCPClient extends TCPClient {
         super(channel, selector);
     }
 
+    /**
+     * Get the current encoding name
+     * @return encoding name
+     */
     public String getEncoding() {
         return encoding;
     }
 
+    /**
+     * Set new encoding for I/O
+     * @param newEncoding
+     * @throws UnsupportedEncodingException 
+     */
     public void setEncoding(String newEncoding) throws UnsupportedEncodingException {
         if (!Charset.isSupported(newEncoding))
             throw new UnsupportedEncodingException(newEncoding);
@@ -44,20 +57,25 @@ abstract public class StringTCPClient extends TCPClient {
         encoding = newEncoding;
     }
 
+    /**
+     * Queue a new line to be sent to the client
+     * 
+     * @param message a line without NL
+     */
     public void putString(String message) {
         try {
             String messageNl = new String(message + "\n");
-            System.out.print(address + ":" + port + " <- " + messageNl);
-            outbuf.put(messageNl.getBytes(encoding));
-            setOps();
-        } catch (BufferOverflowException e) {
-            System.out.println(address + ":" + port + " SENDQ full, disconnecting");
-            disconnect(true);
+            write(messageNl.getBytes(encoding));
         } catch (UnsupportedEncodingException e) {
-            System.out.println(address + ":" + port + " is using unsupported encoding: " + e.getMessage());
+            System.out.println(address + ":" + port + " is using unsupported encoding, disconnecting: " + e.getMessage());
+            disconnect(true);
         }
     }
 
+    /**
+     * Called when a new line arrives
+     * @param message a line without NL or CRNL
+     */
     abstract protected void onString(String message);
 
     protected void onRead() {
@@ -76,7 +94,6 @@ abstract public class StringTCPClient extends TCPClient {
                 }
 
                 if (message != null && message.length() > 0) {
-                    System.out.println(address + ":" + port + " -> " + message);
                     onString(message);
                 }
 

@@ -21,6 +21,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 /**
+ * Listens for gameres clients
  *
  * @author Toni Spets
  */

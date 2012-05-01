@@ -20,6 +20,7 @@ import java.nio.channels.SocketChannel;
 import wol.GameresPacket.InvalidGameresException;
 
 /**
+ * Receives a gameres packet
  *
  * @author Toni Spets
  */

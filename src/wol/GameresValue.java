@@ -21,11 +21,15 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
+ * Holds a gameres value
  *
  * @author Toni Spets
  */
 public class GameresValue {
 
+    /**
+     * All known types that are used in gameres packet
+     */
     public final static int TYPE_BYTE       = 1;
     public final static int TYPE_BOOLEAN    = 2;
     public final static int TYPE_TIME       = 5;
@@ -33,15 +37,46 @@ public class GameresValue {
     public final static int TYPE_STRING     = 7;
     public final static int TYPE_RAW        = 20;
 
+    /**
+     * Our type
+     */
     private int type;
 
+    /**
+     * Our tag
+     */
     private String tag;
+
+    /**
+     * Our value stored as an integer
+     */
     private int intValue;
+
+    /**
+     * Our value stored as a string
+     */
     private String strValue;
+
+    /**
+     * Our value stored as raw data
+     */
     private byte[] rawValue;
 
+    /**
+     * Thrown when packet type is not one of TYPE_*
+     */
     public class InvalidPacketTypeException extends Exception {}
 
+    /**
+     * Create a new GameresValue from data
+     * 
+     * @param tag       tag that is attached to this value
+     * @param type      type of the data
+     * @param length    length of the data
+     * @param data      raw data
+     * @throws BufferUnderflowException
+     * @throws wol.GameresValue.InvalidPacketTypeException 
+     */
     GameresValue(String tag, int type, int length, ByteBuffer data) throws BufferUnderflowException, InvalidPacketTypeException {
 
         this.tag = tag;
@@ -74,30 +109,66 @@ public class GameresValue {
         }
     }
 
+    /**
+     * Get tag name
+     * 
+     * @return 
+     */
     public String getTag() {
         return tag;
     }
 
+    /**
+     * Get value type
+     * 
+     * @return 
+     */
     public int getType() {
         return type;
     }
 
+    /**
+     * Get value raw bytes if TYPE_RAW
+     * 
+     * @return 
+     */
     public byte[] getRaw() {
         return rawValue;
     }
 
+    /**
+     * Get value as boolean if numeral type
+     * 
+     * @return 
+     */
     public boolean getBoolean() {
         return intValue > 0;
     }
 
+    /**
+     * Get value as integer if numeral type
+     * 
+     * @return 
+     */
     public int getInt() {
         return intValue;
     }
 
+    /**
+     * Get value as string if TYPE_STRING
+     * @return 
+     */
     public String getString() {
         return strValue;
     }
 
+    /**
+     * Try to convert whatever value is stored into string
+     * <p>
+     * Note: TYPE_RAW only shows a summary
+     * 
+     * @return 
+     */
     public String toString() {
         if (type == TYPE_BOOLEAN) {
             return intValue > 0 ? "true" : "false";

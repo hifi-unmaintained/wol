@@ -24,6 +24,8 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 /**
+ * Implements a buffered TCP client that can be used for both server and client
+ * connections.
  *
  * @author Toni Spets
  */
@@ -40,6 +42,12 @@ public class TCPClient implements SocketEvent {
     protected ByteBuffer outbuf;
     protected boolean disconnecting;
 
+    /**
+     * Creates a new TCPClient instance
+     * 
+     * @param channel   pre-created channel for communication
+     * @param selector  the main selector that is used to request events
+     */
     protected TCPClient(SocketChannel channel, Selector selector) {
         inbuf = ByteBuffer.allocate(INBUF_SIZE);
         outbuf = ByteBuffer.allocate(OUTBUF_SIZE);
@@ -50,6 +58,9 @@ public class TCPClient implements SocketEvent {
         setOps();
     }
 
+    /**
+     * Requests for events from the selector
+     */
     protected void setOps() {
         int ops = SelectionKey.OP_READ;
 
@@ -68,10 +79,18 @@ public class TCPClient implements SocketEvent {
         }
     }
 
+    /**
+     * Disconnects the client gracefully by flushing the output buffer
+     */
     protected void disconnect() {
         disconnect(false);
     }
 
+    /**
+     * Disconnects the client
+     * 
+     * @param force do not flush the output buffer
+     */
     protected void disconnect(boolean force) {
 
         // allow graceful disconnect
@@ -98,14 +117,15 @@ public class TCPClient implements SocketEvent {
 
     public void canRead() throws IOException {
 
-        // any read error equals disconnect
-        try {
-            if (channel.read(inbuf) == -1) {
-                disconnect();
-                return;
-            }
-        } catch (IOException e) {
+        if (inbuf.remaining() == 0) {
+            System.out.println(address + ":" + port + " read buffer full, disconnecting");
             disconnect(true);
+            return;
+        }
+
+        if (channel.read(inbuf) == -1) {
+            disconnect();
+            return;
         }
 
         inbuf.flip();
@@ -119,12 +139,7 @@ public class TCPClient implements SocketEvent {
         outbuf.flip();
         onWrite();
 
-        // any write error equals disconnect
-        try {
-            channel.write(outbuf);
-        } catch (IOException e) {
-            disconnect(true);
-        }
+        channel.write(outbuf);
 
         outbuf.clear();
         setOps();
@@ -134,10 +149,47 @@ public class TCPClient implements SocketEvent {
             disconnect(true);
     }
 
+    /**
+     * Write to output buffer
+     * @param data the bytes to send
+     */
+    protected void write(byte[] data) {
+        try {
+            outbuf.put(data);
+            setOps();
+        } catch (BufferOverflowException e) {
+            System.out.println(address + ":" + port + " write buffer full, disconnecting");
+            disconnect(true);
+        }
+    }
+
+    public void close() throws IOException {
+
+        onDisconnect();
+
+        if (channel.isOpen())
+            channel.close();
+    }
+
     public void think(long now) {};
 
+    /**
+     * Called when this instance is connected to the other end
+     */
     protected void onConnect() {};
+
+    /**
+     * Called when the input buffer has data
+     */
     protected void onRead() {};
+
+    /**
+     * Called before writing the output buffer, this is usually not needed
+     */
     protected void onWrite() {}
+
+    /**
+     * Called when the channel is disconnected
+     */
     protected void onDisconnect() {};
 }

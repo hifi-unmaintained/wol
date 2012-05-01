@@ -23,6 +23,7 @@ import java.util.HashMap;
 import wol.GameresValue.InvalidPacketTypeException;
 
 /**
+ * Parses a gameres packet into String/GameresValue pairs
  *
  * @author Toni Spets
  */
@@ -34,6 +35,13 @@ public class GameresPacket {
         }
     };
 
+    /**
+     * Parse a gameres packet
+     * 
+     * @param data      complete gameres packet
+     * @return
+     * @throws wol.GameresPacket.InvalidGameresException 
+     */
     static HashMap<String, GameresValue> parse(ByteBuffer data) throws InvalidGameresException {
 
         HashMap<String, GameresValue> values = new HashMap<String, GameresValue>();

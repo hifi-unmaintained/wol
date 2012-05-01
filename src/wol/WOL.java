@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.Properties;
 
 /**
+ * Main WOL event loop
  *
  * @author Toni Spets
  */
@@ -81,11 +82,19 @@ public class WOL {
 
                             if ((ops & SelectionKey.OP_WRITE) > 0)
                                 se.canWrite();
+
                         } catch (IOException e) {
-                            System.out.println("Unexpected IOException when passing event");
+                            System.out.println("IOException when handling event, forcing close: " + e.getMessage());
+
+                            // try closing, if it fails, just remove it anyway
+                            try {
+                                se.close();
+                            } catch (IOException d) {
+                                k.cancel();
+                            }
                         }
 
-                        // remove key from selector if channel is closed
+                        // remove key from selector if channel is closed gracefully
                         if (!k.channel().isOpen())
                             k.cancel();
 

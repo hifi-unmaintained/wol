@@ -34,6 +34,7 @@ import static wol.ChatChannel.ChannelFlags.*;
 import wol.ChatChannel.UserNotOnChannelException;
 
 /**
+ * The Westwood Online Chat server
  *
  * @author Toni Spets
  */
@@ -89,12 +90,303 @@ public class ChatServer extends TCPServer {
         System.out.println("ChatServer listening on " + address + ":" + port);
     }
 
-    void putMotd(ChatClient client) {
-        putReply(client, RPL_MOTDSTART, ":- Welcome to Westwood Online!");
-        putReply(client, RPL_ENDOFMOTD);
+    /**
+     * Write channel user list to client
+     * 
+     * @param client    target client
+     * @param channel   source channel
+     */
+    void putChannelNames(ChatClient client, ChatChannel channel) {
+
+        ArrayList<ChatClient> clients = channel.getUsers();
+        for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
+            ChatClient c = i.next();
+            // FIXME: highly inefficient, concat up to 512 bytes
+            putReply(client, RPL_NAMREPLY, ((channel.getFlags() & CHAN_OFFICIAL) > 0 ? "* " : "= ") + channel.getName() + " :" + (channel.getOwner() == c ? "@" : "") + c.getNick() + ",0,0");
+        }
+
+        putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
     }
 
-    void putList(ChatClient client, int listType, int gameType) {
+    /**
+     * Write a server reply to client without any params
+     * 
+     * @param client    target client
+     * @param code      RPL/ERR code
+     */
+    protected void putReply(ChatClient client, int code) {
+        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick());
+    }
+
+    /**
+     * Write a server reply to client with params
+     * 
+     * @param client    target client
+     * @param code      RPL/ERR code
+     * @param params    pre-formatted params
+     */
+    protected void putReply(ChatClient client, int code, String params) {
+        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick() + " " + params);
+    }
+
+    /**
+     * Write a command reply to client with params
+     * 
+     * @param client    target client
+     * @param command   command name
+     * @param params    pre-formatted params
+     */
+    protected void putReply(ChatClient client, String command, String params) {
+        client.putString(":" + client.getNick() + "!u@h " + command + " " + params);
+    }
+
+    /**
+     * Write a command reply from one client to another
+     * 
+     * @param from      source client
+     * @param to        target client
+     * @param command   command name
+     * @param params    pre-formatted params
+     */
+    protected void putMessage(ChatClient from, ChatClient to, String command, String params) {
+        to.putString(":" + from.getNick() + "!u@h " + command + " " + params);
+    }
+
+    /**
+     * Write a command reply from one client to channel including the sender
+     * 
+     * @param channel   target channel
+     * @param client    source client
+     * @param command   command name
+     * @param params    pre-formatted params
+     */
+    protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params) {
+        putReplyChannel(channel, client, command, params, false);
+    }
+
+    /**
+     * Write a command reply from one client to channel
+     * 
+     * @param channel   target channel
+     * @param client    source client
+     * @param command   command name
+     * @param params    pre-formatted params
+     * @param skipFrom  skip source client
+     */
+    protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params, boolean skipFrom) {
+        String message = ":" + client.getNick() + "!u@h " + command + " " + params;
+        ArrayList<ChatClient> clients = channel.getUsers();
+        for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
+            ChatClient to = i.next();
+            if (!skipFrom || to != client) {
+                to.putString(message);
+            }
+        }
+    }
+
+    /**
+     * Write a raw command to client
+     * 
+     * @param client    target client
+     * @param command   command name
+     * @param params    pre-formatted params
+     */
+    protected void putCommand(ChatClient client, String command, String params) {
+        client.putString(command + " " + params);
+    }
+
+    /**
+     * Called when client sends CVERS command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onCvers(ChatClient client, String[] params) { }
+
+    /**
+     * Called when client sends PASS command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onPass(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        if (!params[0].equals("supersecret")) {
+            putReply(client, ERR_PASSWDMISMATCH, ":Password incorrect ("+params[0]+")");
+            client.disconnect();
+            return;
+        }
+
+        client.havePassword = true;
+    }
+
+    /**
+     * Called when client sends NICK command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onNick(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, "NICK :Not enough parameters");
+            return;
+        }
+
+        if (params[0].length() == 0) {
+            putReply(client, ERR_NONICKNAMEGIVEN, ":No nickname given");
+            return;
+        }
+
+        if (params[0].length() > 9) {
+            putReply(client, ERR_ERRORNEUSNICKNAME, params[0] + " :Errorneus nickname");
+            return;
+        }
+
+        if (clients.containsKey(params[0])) {
+            putReply(client, ERR_NICKNAMEINUSE, params[0] + " :Nickname is already in use");
+            return;
+        }
+
+        client.setNick(params[0]);
+    }
+
+    /**
+     * Called when client sends APGAR command (login password)
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onApgar(ChatClient client, String[] params) { }
+
+    /**
+     * Called when client sends SERIAL command (cd-key)
+     * <p>
+     * Note: We should probably never implement this as we can't validate them
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onSerial(ChatClient client, String[] params) { }
+
+    /**
+     * Called when client sends USER command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onUser(ChatClient client, String[] params) {
+
+        if (params.length < 4) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        if (client.registered) {
+            putReply(client, ERR_ALREADYREGISTERED, ":You have already registered");
+            return;
+        }
+
+        if (!client.havePassword) {
+            putReply(client, ERR_PASSWDMISMATCH, ":Password incorrect");
+            client.disconnect();
+            return;
+        }
+
+        if (client.getNick() != null) {
+            client.registered = true;
+            clients.put(client.getNick(), client);
+
+            putReply(client, RPL_MOTDSTART, ":- Welcome to Westwood Online!");
+            putReply(client, RPL_ENDOFMOTD);
+        }
+    }
+
+    /**
+     * Called when client sends VERCHK command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onVerchk(ChatClient client, String[] params) { }
+
+    /**
+     * Called when client sends SETOPT command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onSetOpt(ChatClient client, String[] params) {
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, "SETOPT :Not enough parameters");
+            return;
+        }
+
+        String[] options = params[0].split(",");
+        if (options.length == 2) {
+            client.setOptions(Integer.valueOf(options[0]), Integer.valueOf(options[1]));
+        }
+    }
+
+    /**
+     * Called when client sends GETCODEPAGE command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onGetCodepage(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        if (clients.containsKey(params[0])) {
+            String encoding = clients.get(params[0]).getEncoding();
+            if (encoding.startsWith("Cp")) {
+                putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
+            } else {
+                // FIXME: lie if no codepage set
+                putReply(client, RPL_CODEPAGE, client.getNick() + "`1252");
+            }
+        } else {
+            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
+        }
+    }
+
+    /**
+     * Called when client send SETCODEPAGE command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onSetCodepage(ChatClient client, String[] params) {
+        try {
+            client.setEncoding("Cp" + params[0]);
+            putReply(client, RPL_CODEPAGESET, params[0]);
+        } catch (UnsupportedEncodingException e) {
+             //FIXME: unsupported codepage error reply?
+        }
+    }
+
+    /**
+     * Called when client sends LIST command (channel/lobby list)
+     * @param client
+     * @param params 
+     */
+    protected void onList(ChatClient client, String[] params) {
+        if (params.length < 2) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        int listType = Integer.valueOf(params[0]);
+        int gameType = Integer.valueOf(params[1]);
+
         putReply(client, RPL_LISTSTART);
 
         if (listType == 0) {
@@ -128,176 +420,12 @@ public class ChatServer extends TCPServer {
         putReply(client, RPL_ENDOFLIST);
     }
 
-    void putChannelNames(ChatClient client, ChatChannel channel) {
-
-        ArrayList<ChatClient> clients = channel.getUsers();
-        for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
-            ChatClient c = i.next();
-            // FIXME: highly inefficient, concat up to 512 bytes
-            putReply(client, RPL_NAMREPLY, ((channel.getFlags() & CHAN_OFFICIAL) > 0 ? "* " : "= ") + channel.getName() + " :" + (channel.getOwner() == c ? "@" : "") + c.getNick() + ",0,0");
-        }
-
-        putReply(client, RPL_ENDOFNAMES, channel.getName() + " :End of names");
-    }
-
-    protected void putReply(ChatClient client, int code) {
-        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick());
-    }
-
-    protected void putReply(ChatClient client, int code, String params) {
-        client.putString(":" + WOL.hostname + " " + code + " " + client.getNick() + " " + params);
-    }
-
-    protected void putReply(ChatClient client, String command, String params) {
-        client.putString(":" + client.getNick() + "!u@h " + command + " " + params);
-    }
-
-    protected void putMessage(ChatClient from, ChatClient to, String command, String params) {
-        to.putString(":" + from.getNick() + "!u@h " + command + " " + params);
-    }
-
-    protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params) {
-        putReplyChannel(channel, client, command, params, false);
-    }
-
-    protected void putReplyChannel(ChatChannel channel, ChatClient client, String command, String params, boolean skipFrom) {
-        String message = ":" + client.getNick() + "!u@h " + command + " " + params;
-        ArrayList<ChatClient> clients = channel.getUsers();
-        for (Iterator<ChatClient> i = clients.iterator(); i.hasNext();) {
-            ChatClient to = i.next();
-            if (!skipFrom || to != client) {
-                to.putString(message);
-            }
-        }
-    }
-
-    protected void putCommand(ChatClient client, String command, String params) {
-        client.putString(command + " " + params);
-    }
-
-    protected void onCvers(ChatClient client, String[] params) { }
-
-    protected void onPass(ChatClient client, String[] params) {
-
-        if (params.length < 1) {
-            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
-            return;
-        }
-
-        if (!params[0].equals("supersecret")) {
-            putReply(client, ERR_PASSWDMISMATCH, ":Password incorrect ("+params[0]+")");
-            client.disconnect();
-            return;
-        }
-
-        client.havePassword = true;
-    }
-
-    protected void onNick(ChatClient client, String[] params) {
-
-        if (params.length < 1) {
-            putReply(client, ERR_NEEDMOREPARAMS, "NICK :Not enough parameters");
-            return;
-        }
-
-        if (params[0].length() == 0) {
-            putReply(client, ERR_NONICKNAMEGIVEN, ":No nickname given");
-            return;
-        }
-
-        if (params[0].length() > 9) {
-            putReply(client, ERR_ERRORNEUSNICKNAME, params[0] + " :Errorneus nickname");
-            return;
-        }
-
-        if (clients.containsKey(params[0])) {
-            putReply(client, ERR_NICKNAMEINUSE, params[0] + " :Nickname is already in use");
-            return;
-        }
-
-        client.setNick(params[0]);
-    }
-
-    protected void onApgar(ChatClient client, String[] params) { }
-    protected void onSerial(ChatClient client, String[] params) { }
-
-    protected void onUser(ChatClient client, String[] params) {
-
-        if (params.length < 4) {
-            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
-            return;
-        }
-
-        if (client.registered) {
-            putReply(client, ERR_ALREADYREGISTERED, ":You have already registered");
-            return;
-        }
-
-        if (!client.havePassword) {
-            putReply(client, ERR_PASSWDMISMATCH, ":Password incorrect");
-            client.disconnect();
-            return;
-        }
-
-        if (client.getNick() != null) {
-            client.registered = true;
-            clients.put(client.getNick(), client);
-            putMotd(client);
-        }
-    }
-
-    protected void onVerchk(ChatClient client, String[] params) { }
-
-    protected void onSetOpt(ChatClient client, String[] params) {
-        if (params.length < 1) {
-            putReply(client, ERR_NEEDMOREPARAMS, "SETOPT :Not enough parameters");
-            return;
-        }
-
-        String[] options = params[0].split(",");
-        if (options.length == 2) {
-            client.setOptions(Integer.valueOf(options[0]), Integer.valueOf(options[1]));
-        }
-    }
-
-    protected void onGetCodepage(ChatClient client, String[] params) {
-
-        if (params.length < 1) {
-            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
-            return;
-        }
-
-        if (clients.containsKey(params[0])) {
-            String encoding = clients.get(params[0]).getEncoding();
-            if (encoding.startsWith("Cp")) {
-                putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
-            } else {
-                // FIXME: lie if no codepage set
-                putReply(client, RPL_CODEPAGE, client.getNick() + "`1252");
-            }
-        } else {
-            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
-        }
-    }
-
-    protected void onSetCodepage(ChatClient client, String[] params) {
-        try {
-            client.setEncoding("Cp" + params[0]);
-            putReply(client, RPL_CODEPAGESET, params[0]);
-        } catch (UnsupportedEncodingException e) {
-             //FIXME: unsupported codepage error reply?
-        }
-    }
-
-    protected void onList(ChatClient client, String[] params) {
-        if (params.length < 2) {
-            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
-            return;
-        }
-
-        putList(client, Integer.parseInt(params[0]), Integer.parseInt(params[1]));
-    }
-
+    /**
+     * Called when client sends JOINGAME command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onJoinGame(ChatClient client, String[] params) {
 
         // normal join
@@ -363,6 +491,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends TOPIC command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onTopic(ChatClient client, String params[]) {
         if (params.length < 2) {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
@@ -381,6 +515,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends GAMEOPT command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onGameopt(ChatClient client, String params[]) {
         if (params.length < 2) {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
@@ -423,6 +563,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends JOIN command (to join a lobby or channel)
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onJoin(ChatClient client, String[] params) {
 
         if (params.length < 2) {
@@ -450,6 +596,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends PRIVMSG command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onPrivmsg(ChatClient client, String[] params) {
 
         if (params.length < 2) {
@@ -477,6 +629,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends PAGE command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onPage(ChatClient client, String[] params) {
 
         if (params.length < 2) {
@@ -500,6 +658,12 @@ public class ChatServer extends TCPServer {
         putReply(client, RPL_PAGE, "0 :Ok");
     }
 
+    /**
+     * Called when client sends FINDUSEREX command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onFindUserEx(ChatClient client, String[] params) {
 
         if (params.length < 2) {
@@ -530,6 +694,12 @@ public class ChatServer extends TCPServer {
         putReply(client, RPL_FINDUSEREX, "1 :No such nick (not in any channel)");
     }
 
+    /**
+     * Called when client sends USERIP command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onUserIp(ChatClient client, String[] params) {
         if (params.length < 1) {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
@@ -539,6 +709,12 @@ public class ChatServer extends TCPServer {
         // not needed for RA
     }
 
+    /**
+     * Called when client sends STARTG command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onStartG(ChatClient client, String[] params) {
 
         if (params.length < 2) {
@@ -570,6 +746,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends KICK command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onKick(ChatClient client, String[] params) {
         if (params.length < 2) {
             putReply(client, ERR_NEEDMOREPARAMS, "KICK :Not enough parameters");
@@ -594,6 +776,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends MODE command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onMode(ChatClient client, String[] params) {
         // we're not supporting any standard IRC modes, except +b, so 3 params for now
         if (params.length < 3) {
@@ -622,6 +810,12 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends PART command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onPart(ChatClient client, String[] params) {
 
         if (params.length < 1) {
@@ -647,15 +841,31 @@ public class ChatServer extends TCPServer {
         }
     }
 
+    /**
+     * Called when client sends QUIT command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
     protected void onQuit(ChatClient client, String[] params) {
         putCommand(client, "ERROR", ":Quit");
         client.disconnect();
     }
 
+    /**
+     * Called when the client is considered idle and should be pinged
+     * 
+     * @param client    target client
+     */
     public void clientIdle(ChatClient client) {
         putCommand(client, "PING", ":" + WOL.hostname);
     }
 
+    /**
+     * Called when the client is considered timed out and should be disconnected
+     * 
+     * @param client    target client
+     */
     public void clientTimeout(ChatClient client) {
         putCommand(client, "ERROR", ":Ping timeout");
         // desparately try to send the last command out
@@ -665,6 +875,11 @@ public class ChatServer extends TCPServer {
         client.disconnect(true);
     }
 
+    /**
+     * Called when a client disconnect is finalized
+     * 
+     * @param client    source client
+     */
     public void clientDisconnect(ChatClient client) {
         if (clients.containsValue(client)) {
             for (Iterator<ChatChannel> i = channels.values().iterator(); i.hasNext();) {

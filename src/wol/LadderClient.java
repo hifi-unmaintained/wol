@@ -19,8 +19,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 /**
+ * Handles ladder requests
  *
- * @author hifi
+ * @author Toni Spets
  */
 public class LadderClient extends StringTCPClient {
 

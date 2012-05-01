@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.*;
 
 /**
+ * Implements an abstract TCP server that can accept clients
  *
  * @author Toni Spets
  */
@@ -29,6 +30,14 @@ abstract public class TCPServer implements SocketEvent {
     protected ServerSocketChannel channel;
     protected Selector selector;
 
+    /**
+     * Creates a new TCPServer instance
+     * 
+     * @param address   local address that we listen on
+     * @param port      local port that we listen on
+     * @param selector  the main selector that is used to request events
+     * @throws IOException 
+     */
     protected TCPServer(InetAddress address, int port, Selector selector) throws IOException {
         this.selector = selector;
 
@@ -51,8 +60,18 @@ abstract public class TCPServer implements SocketEvent {
     public void canConnect() {}
     public void canRead() {}
     public void canWrite() {}
+
+    public void close() throws IOException {
+        if (channel.isOpen())
+            channel.close();
+    }
+
     public void think(long now) {}
 
+    /**
+     * Called when a new client was accepted
+     * @param clientChannel new connected client channel
+     */
     abstract protected void onAccept(SocketChannel clientChannel);
 
 }

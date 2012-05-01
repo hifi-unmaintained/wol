@@ -19,8 +19,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 /**
+ * Handles server list
  *
- * @author hifi
+ * @author Toni Spets
  */
 public class ServerClient extends StringTCPClient {
     

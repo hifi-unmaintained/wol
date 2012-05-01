@@ -22,9 +22,40 @@ import java.io.IOException;
  * @author Toni Spets
  */
 public interface SocketEvent {
+    /**
+     * Called on OP_ACCEPT event
+     * @throws IOException 
+     */
     public void canAccept() throws IOException;
+
+    /**
+     * Called on OP_CONNECT event
+     * @throws IOException 
+     */
     public void canConnect() throws IOException;
+
+    /**
+     * Called on OP_READ event
+     * @throws IOException 
+     */
     public void canRead() throws IOException;
+
+    /**
+     * Called on OP_WRITE event
+     * @throws IOException 
+     */
     public void canWrite() throws IOException;
+
+    /**
+     * Called when the channel is to be closed, last chance to do cleanup
+     */
+    public void close() throws IOException;
+    
+    /**
+     * Called periodically to allow implementation to timeout and do various
+     * things. It is called approximately once per second.
+     * 
+     * @param now 
+     */
     public void think(long now);
 }
