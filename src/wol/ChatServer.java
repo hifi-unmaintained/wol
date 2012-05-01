@@ -41,6 +41,8 @@ import wol.ChatChannel.UserNotOnChannelException;
 public class ChatServer extends TCPServer {
 
     public class NumericReplies {
+        final static public int RPL_LOCALE              = 309;
+        final static public int RPL_LOCALESET           = 310;
         final static public int RPL_LISTSTART           = 321;
         final static public int RPL_LISTGAME            = 326;
         final static public int RPL_LIST                = 327;
@@ -49,6 +51,7 @@ public class ChatServer extends TCPServer {
         final static public int RPL_ENDOFLIST           = 323;
         final static public int RPL_TOPIC               = 332;
         final static public int RPL_NAMREPLY            = 353;
+        final static public int RPL_SQUADINFO           = 358;
         final static public int RPL_ENDOFNAMES          = 366;
         final static public int RPL_MOTDSTART           = 375;
         final static public int RPL_MOTD                = 372;
@@ -60,6 +63,7 @@ public class ChatServer extends TCPServer {
         final static public int ERR_NONICKNAMEGIVEN     = 431;
         final static public int ERR_ERRORNEUSNICKNAME   = 432;
         final static public int ERR_NICKNAMEINUSE       = 433;
+        final static public int ERR_SQUADIDNOEXIST      = 439;
         final static public int ERR_USERNOTINCHANNEL    = 441;
         final static public int ERR_NOTONCHANNEL        = 442;
         final static public int ERR_NEEDMOREPARAMS      = 461;
@@ -86,7 +90,8 @@ public class ChatServer extends TCPServer {
         // Red Alert lobbies
         channels.put("#Lob_21_0", new ChatChannel("#Lob_21_0", null, "zotclot9", 21, 0, 0, false, 0, CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT));
         channels.put("#Lob_21_1", new ChatChannel("#Lob_21_1", null, "progamer", 21, 0, 0, false, 0, CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT));
-
+        // TiberianSun lobbies
+        channels.put("#Lob_18_0", new ChatChannel("#Lob_18_0", null, "zotclot9", 18, 0, 0, false, 0, CHAN_LOBBY|CHAN_OFFICIAL|CHAN_PERMANENT));
         System.out.println("ChatServer listening on " + address + ":" + port);
     }
 
@@ -344,7 +349,8 @@ public class ChatServer extends TCPServer {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
             return;
         }
-
+        
+        //FIXME: Add support for more clients which are in other parms
         if (clients.containsKey(params[0])) {
             String encoding = clients.get(params[0]).getEncoding();
             if (encoding.startsWith("Cp")) {
@@ -370,6 +376,42 @@ public class ChatServer extends TCPServer {
             putReply(client, RPL_CODEPAGESET, params[0]);
         } catch (UnsupportedEncodingException e) {
              //FIXME: unsupported codepage error reply?
+        }
+    }
+
+    protected void onGetLocale(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+        
+        //FIXME: Add support for more clients which are in other parms
+        if (clients.containsKey(params[0])) {
+            int locale = clients.get(params[0]).getLocale();
+            if (locale != 0) {
+                putReply(client, RPL_LOCALE, client.getNick() + "`" + locale);
+            } else {
+                // FIXME: lie if no locale set
+                putReply(client, RPL_LOCALE, client.getNick() + "`0");
+            }
+        } else {
+            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
+        }
+    }
+    /**
+     * Called when client send SETLOCALE command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+    protected void onSetLocale(ChatClient client, String[] params) {
+        try {
+            client.setLocale(Integer.valueOf(params[0]));
+            putReply(client, RPL_LOCALESET, params[0]);
+        } catch (Exception e) {
+             //FIXME: unknown locale error reply?
+            System.out.println("Unexpected exception when SetLocale");
         }
     }
 
@@ -808,6 +850,45 @@ public class ChatServer extends TCPServer {
         } else {
             putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
         }
+    }
+    
+    /**
+     * Called when client sends NAMES command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+     protected void onNames(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        if (channels.containsKey(params[0])) {
+            ChatChannel channel = channels.get(params[0]);
+            //Fixme: Should we send list only when client is in channel?
+            putChannelNames(client, channel);
+        } else {
+            putReply(client, ERR_NOSUCHCHANNEL, params[0] + " :No such channel");
+        }
+    }
+
+        /**
+     * Called when client sends SQUADINFO command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+     protected void onSquadInfo(ChatClient client, String[] params) {
+
+        if (params.length < 1) {
+            putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
+            return;
+        }
+
+        //FIXME: In params[0] is ID of squad, if is 0 it wants info for client
+        putReply(client, ERR_SQUADIDNOEXIST, ":ID does not exist");
     }
 
     /**
