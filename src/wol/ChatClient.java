@@ -80,6 +80,11 @@ public class ChatClient extends StringTCPClient {
         final static public int OPT1_ALLOWFIND = 1;
         final static public int OPT2_ALLOWPAGE = 1;
     }
+    
+    /**
+     * Client's LOCALE
+     */
+    private int locale;
 
     /**
      * Create a new ChatClient that is tied to given ChatServer
@@ -135,6 +140,16 @@ public class ChatClient extends StringTCPClient {
     }
 
     /**
+     * Get ip address as long
+     * 
+     * @return          ip address
+     */
+    public long getLongIp() {
+        byte[] raw = address.getAddress();
+        return raw[3] + (raw[2] << 8) + (raw[1] << 16) + (raw[0] << 24);
+    }
+    
+    /**
      * Can this user be found by FIND command?
      * 
      * @return 
@@ -161,6 +176,24 @@ public class ChatClient extends StringTCPClient {
     public void setOptions(int newOpt1, int newOpt2) {
         opt1 = newOpt1;
         opt2 = newOpt2;
+    }
+   
+    /**
+     * Get locale
+     * 
+     * @return          locale
+     */
+    public int getLocale() {
+        return locale;
+    }
+
+    /**
+     * Set locale
+     * 
+     * @param locale   new locale
+     */
+    public void setLocale(int newLocale) {
+        locale = newLocale;
     }
 
     public void onString(String message) {
@@ -266,6 +299,14 @@ public class ChatClient extends StringTCPClient {
                 server.onGetCodepage(this, params);
             }
 
+            else if (command.equalsIgnoreCase("SETLOCALE")) {
+                server.onSetLocale(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("GETLOCALE")) {
+                server.onGetLocale(this, params);
+            }
+
             else if (command.equalsIgnoreCase("FINDUSEREX")) {
                 server.onFindUserEx(this, params);
             }
@@ -276,6 +317,14 @@ public class ChatClient extends StringTCPClient {
 
             else if (command.equalsIgnoreCase("STARTG")) {
                 server.onStartG(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("NAMES")) {
+                server.onNames(this, params);
+            }
+
+            else if (command.equalsIgnoreCase("SQUADINFO")) {
+                server.onSquadInfo(this, params);
             }
 
             else if (command.equalsIgnoreCase("PART")) {
