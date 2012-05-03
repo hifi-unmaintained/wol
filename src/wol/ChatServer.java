@@ -347,24 +347,28 @@ public class ChatServer extends TCPServer {
      * @param params    params
      */
     protected void onGetCodepage(ChatClient client, String[] params) {
+        String temp = "";
 
         if (params.length < 1) {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
             return;
         }
         
-        //FIXME: Add support for more clients which are in other parms
-        if (clients.containsKey(params[0])) {
-            String encoding = clients.get(params[0]).getEncoding();
-            if (encoding.startsWith("Cp")) {
-                putReply(client, RPL_CODEPAGE, client.getNick() + "`" + encoding.substring(2));
+        for (int i = 0; i < params.length; i++) {
+            if (clients.containsKey(params[i])) {
+                String encoding = clients.get(params[i]).getEncoding();
+                if (encoding.startsWith("Cp"))
+                    temp = temp + params[i] + "`" + encoding.substring(2);
+                else
+                    temp = temp + params[i] + "`1252";
             } else {
                 // FIXME: lie if no codepage set
-                putReply(client, RPL_CODEPAGE, client.getNick() + "`1252");
+                temp = temp + params[i] + "`1252";
             }
-        } else {
-            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
+            if (i < params.length-1)
+                temp = temp + "`";
         }
+        putReply(client, RPL_CODEPAGE, temp);
     }
 
     /**
@@ -383,25 +387,27 @@ public class ChatServer extends TCPServer {
     }
 
     protected void onGetLocale(ChatClient client, String[] params) {
+        String temp = "";
 
         if (params.length < 1) {
             putReply(client, ERR_NEEDMOREPARAMS, ":Not enough parameters");
             return;
         }
         
-        //FIXME: Add support for more clients which are in other parms
-        if (clients.containsKey(params[0])) {
-            int locale = clients.get(params[0]).getLocale();
-            if (locale != 0) {
-                putReply(client, RPL_LOCALE, client.getNick() + "`" + locale);
-            } else {
-                // FIXME: lie if no locale set
-                putReply(client, RPL_LOCALE, client.getNick() + "`0");
-            }
-        } else {
-            putReply(client, ERR_NOSUCHNICK, params[0] + " :No such nick");
+        for (int i = 0; i < params.length; i++) {
+            // FIXME: lie if no codepage set
+            int locale = 0;
+            if (clients.containsKey(params[i]))
+                locale = clients.get(params[i]).getLocale();
+
+            temp = temp + params[i] + "`" + locale;
+
+            if (i < params.length-1)
+                temp = temp + "`";
         }
+        putReply(client, RPL_LOCALE, temp);
     }
+
     /**
      * Called when client send SETLOCALE command
      * 
