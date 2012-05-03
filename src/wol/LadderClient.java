@@ -30,6 +30,11 @@ public class LadderClient extends StringTCPClient {
     }
 
     public void onString(String message) {
+        /*
+         * Pelish: WOL client expect that after all data are sent
+         * server close that connection - so we do only that for now.
+         */
+        disconnect();
     }
 
     protected void onConnect() {
