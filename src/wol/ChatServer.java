@@ -519,9 +519,8 @@ public class ChatServer extends TCPServer {
         String reserved = params[7];
         String key = params.length > 8 ? params[8] : "";
 
-        ChatChannel game = new ChatChannel(name, client, key, Integer.valueOf(gameType), Integer.valueOf(minUsers), Integer.valueOf(maxUsers), Integer.valueOf(tournament) > 0, Integer.valueOf(reserved), CHAN_LOBBY);
-
         try {
+            ChatChannel game = new ChatChannel(name, client, key, Integer.valueOf(gameType), Integer.valueOf(minUsers), Integer.valueOf(maxUsers), Integer.valueOf(tournament) > 0, Long.valueOf(reserved), CHAN_LOBBY);
             game.join(client, key);
             channels.put(name, game);
             putReply(client, RPL_TOPIC, ":");

@@ -94,12 +94,12 @@ public class ChatChannel {
      * Channel flags
      * @see ChannelFlags
      */
-    protected int flags;
+    protected long flags;
 
     /**
      * Game specific reserved settings
      */
-    protected int reserved;
+    protected long reserved;
 
     /**
      * Host ip address in integer format
@@ -183,7 +183,7 @@ public class ChatChannel {
      * @param reserved      game specific reserved settings
      * @param flags         channel flags
      */
-    public ChatChannel(String name, ChatClient owner, String key, int gameType, int minUsers, int maxUsers, boolean tournament, int reserved, int flags) {
+    public ChatChannel(String name, ChatClient owner, String key, int gameType, int minUsers, int maxUsers, boolean tournament, long reserved, long flags) {
         this.name = name;
         this.owner = owner;
         this.key = key;
@@ -256,7 +256,7 @@ public class ChatChannel {
      * 
      * @return 
      */
-    public int getReserved() {
+    public long getReserved() {
         return reserved;
     }
 
@@ -283,7 +283,7 @@ public class ChatChannel {
      * 
      * @return 
      */
-    public int getFlags() {
+    public long getFlags() {
         return flags;
     }
 
