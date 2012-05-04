@@ -109,6 +109,7 @@ public class ChatClient extends StringTCPClient {
      * @param message   non-terminated line
      */
     public void putString(String message) {
+        System.out.println(address + ":" + port + " <- " + message);
         super.putString(message + "\r");
     }
 
@@ -197,6 +198,8 @@ public class ChatClient extends StringTCPClient {
     }
 
     public void onString(String message) {
+
+        System.out.println(address + ":" + port + " -> " + message);
 
         lastMessage = System.currentTimeMillis();
         idle = false;
