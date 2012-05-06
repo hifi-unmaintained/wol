@@ -57,6 +57,7 @@ public class ChatServer extends TCPServer {
         final static public int RPL_MOTD                = 372;
         final static public int RPL_ENDOFMOTD           = 376;
         final static public int RPL_PAGE                = 389;
+        final static public int RPL_TIME                = 391;
         final static public int RPL_FINDUSEREX          = 398;
         final static public int ERR_NOSUCHNICK          = 401;
         final static public int ERR_NOSUCHCHANNEL       = 403;
@@ -909,6 +910,17 @@ public class ChatServer extends TCPServer {
 
         //FIXME: In params[0] is ID of squad, if is 0 it wants info for client
         putReply(client, ERR_SQUADIDNOEXIST, ":ID does not exist");
+    }
+
+    /**
+     * Called when client sends TIME command
+     * 
+     * @param client    source client
+     * @param params    params
+     */
+     protected void onTime(ChatClient client, String[] params) {
+
+        putReply(client, RPL_TIME, WOL.hostname + " :" + (int)(System.currentTimeMillis() / 1000));
     }
 
     /**

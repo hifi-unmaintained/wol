@@ -330,6 +330,10 @@ public class ChatClient extends StringTCPClient {
                 server.onSquadInfo(this, params);
             }
 
+            else if (command.equalsIgnoreCase("TIME")) {
+                server.onTime(this, params);
+            }
+
             else if (command.equalsIgnoreCase("PART")) {
                 server.onPart(this, params);
             }
